@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include "gdt.h"
 
 // ─── VGA ───────────────────────────────────────────────
 #define VGA_ADDRESS 0xB8000
@@ -150,7 +151,7 @@ static void cmd_help(void) {
     for (int i = 0; i < (int)CMD_COUNT; i++) {
         print("  ");
         print(commands[i].name);
-        print("\t- ");
+        print("   - ");
         print(commands[i].desc);
         print("\n");
     }
@@ -158,6 +159,7 @@ static void cmd_help(void) {
 
 // ─── Ядро ──────────────────────────────────────────────
 void kernel_main(void) {
+    gdt_init();
     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
         vga[i] = (BLACK << 12) | (' ');
 

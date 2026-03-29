@@ -1,9 +1,9 @@
 CC      = gcc
 AS      = nasm
-CFLAGS  = -m32 -ffreestanding -fno-stack-protector -nostdlib -fno-pic -O2
+CFLAGS  = -m32 -ffreestanding -fno-stack-protector -nostdlib -fno-pic -O2 -Ikernel
 LDFLAGS = -m elf_i386 -T linker.ld
 
-KERNEL_SRC = kernel/kernel.c
+KERNEL_SRC = kernel/kernel.c kernel/gdt.c
 KERNEL_BIN = kernel.bin
 ISO         = limon.iso
 
@@ -12,10 +12,13 @@ all: $(ISO)
 boot.o: boot/boot.asm
 	$(AS) -f elf32 $< -o $@
 
-kernel.o: $(KERNEL_SRC)
+kernel.o: kernel/kernel.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(KERNEL_BIN): boot.o kernel.o
+gdt.o: kernel/gdt.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(KERNEL_BIN): boot.o kernel.o gdt.o
 	ld $(LDFLAGS) -o $@ $^
 
 $(ISO): $(KERNEL_BIN)
