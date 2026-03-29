@@ -1,65 +1,26 @@
 #include <stdint.h>
 
-static int kstrcmp(const char* a, const char* b) {
-    while (*a && *b && *a == *b) { a++; b++; }
-    return *a - *b;
-}
-
-// Порты ввода-вывода
-static inline uint8_t inb(uint16_t port) {
-    uint8_t val;
-    __asm__ volatile ("inb %1, %0" : "=a"(val) : "Nd"(port));
-    return val;
-}
-
-// Клавиатура PS/2
-#define KEYBOARD_PORT 0x60
-
-static const char keymap[] = {
-    0, 0, '1','2','3','4','5','6','7','8','9','0','-','=','\b',
-    '\t','q','w','e','r','t','y','u','i','o','p','[',']','\n',
-    0,'a','s','d','f','g','h','j','k','l',';','\'','`',
-    0,'\\','z','x','c','v','b','n','m',',','.','/',0,
-    '*',0,' '
-};
-
-static char read_key(void) {
-    uint8_t scan;
-    
-    // Ждём пока буфер клавиатуры не будет готов
-    while (!(inb(0x64) & 0x01));
-    
-    scan = inb(KEYBOARD_PORT);
-    
-    // Игнорируем отпускание клавиши (0x80+)
-    if (scan & 0x80) return 0;
-
-    if (scan < sizeof(keymap))
-        return keymap[scan];
-    return 0;
-}
-
+// ─── VGA ───────────────────────────────────────────────
 #define VGA_ADDRESS 0xB8000
 #define VGA_WIDTH   80
 #define VGA_HEIGHT  25
 
-// Цвета VGA
-#define BLACK        0x0
-#define BLUE         0x1
-#define GREEN        0x2
-#define CYAN         0x3
-#define RED          0x4
-#define MAGENTA      0x5
-#define BROWN        0x6
-#define LIGHT_GREY   0x7
-#define DARK_GREY    0x8
-#define LIGHT_BLUE   0x9
-#define LIGHT_GREEN  0xA
-#define LIGHT_CYAN   0xB
-#define LIGHT_RED    0xC
+#define BLACK         0x0
+#define BLUE          0x1
+#define GREEN         0x2
+#define CYAN          0x3
+#define RED           0x4
+#define MAGENTA       0x5
+#define BROWN         0x6
+#define LIGHT_GREY    0x7
+#define DARK_GREY     0x8
+#define LIGHT_BLUE    0x9
+#define LIGHT_GREEN   0xA
+#define LIGHT_CYAN    0xB
+#define LIGHT_RED     0xC
 #define LIGHT_MAGENTA 0xD
-#define YELLOW       0xE
-#define WHITE        0xF
+#define YELLOW        0xE
+#define WHITE         0xF
 
 static uint16_t* vga = (uint16_t*)VGA_ADDRESS;
 static int cursor_x = 0;
@@ -67,15 +28,11 @@ static int cursor_y = 0;
 static uint8_t current_color = 0x0F;
 
 static void scroll(void) {
-    // Сдвигаем все строки вверх на одну
     for (int y = 0; y < VGA_HEIGHT - 1; y++)
         for (int x = 0; x < VGA_WIDTH; x++)
             vga[y * VGA_WIDTH + x] = vga[(y + 1) * VGA_WIDTH + x];
-
-    // Очищаем последнюю строку
     for (int x = 0; x < VGA_WIDTH; x++)
         vga[(VGA_HEIGHT - 1) * VGA_WIDTH + x] = (BLACK << 12) | (' ');
-
     cursor_y = VGA_HEIGHT - 1;
 }
 
@@ -112,12 +69,98 @@ static void center_print(const char* str, int row) {
     print(str);
 }
 
+// ─── Утилиты ───────────────────────────────────────────
+static int kstrcmp(const char* a, const char* b) {
+    while (*a && *b && *a == *b) { a++; b++; }
+    return *a - *b;
+}
+
+static inline uint8_t inb(uint16_t port) {
+    uint8_t val;
+    __asm__ volatile ("inb %1, %0" : "=a"(val) : "Nd"(port));
+    return val;
+}
+
+#define KEYBOARD_PORT 0x60
+
+static const char keymap[] = {
+    0, 0, '1','2','3','4','5','6','7','8','9','0','-','=','\b',
+    '\t','q','w','e','r','t','y','u','i','o','p','[',']','\n',
+    0,'a','s','d','f','g','h','j','k','l',';','\'','`',
+    0,'\\','z','x','c','v','b','n','m',',','.','/',0,
+    '*',0,' '
+};
+
+static char read_key(void) {
+    uint8_t scan;
+    while (!(inb(0x64) & 0x01));
+    scan = inb(KEYBOARD_PORT);
+    if (scan & 0x80) return 0;
+    if (scan < sizeof(keymap)) return keymap[scan];
+    return 0;
+}
+
+// ─── Команды ───────────────────────────────────────────
+typedef void (*cmd_func)(void);
+
+typedef struct {
+    const char* name;
+    const char* desc;
+    cmd_func    func;
+} Command;
+
+static void cmd_help(void);
+
+static void cmd_about(void) {
+    set_color(LIGHT_GREY, BLACK);
+    print("  Limon OS v0.1\n");
+    print("  Developed with Claude Sonnet 4.6\n");
+    print("  Inspired by VibeOS\n");
+}
+
+static void cmd_uname(void) {
+    set_color(WHITE, BLACK);
+    print("  Limon OS v0.1 i386\n");
+}
+
+static void cmd_clear(void) {
+    for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
+        vga[i] = (BLACK << 12) | (' ');
+    cursor_x = 0;
+    cursor_y = 0;
+}
+
+static void cmd_echo(char* args) {
+    set_color(WHITE, BLACK);
+    print("  ");
+    print(args);
+    print("\n");
+}
+
+static const Command commands[] = {
+    {"help",  "show commands",  cmd_help},
+    {"about", "system info",    cmd_about},
+    {"clear", "clear screen",   cmd_clear},
+    {"uname", "kernel version", cmd_uname},
+};
+#define CMD_COUNT (sizeof(commands) / sizeof(commands[0]))
+
+static void cmd_help(void) {
+    set_color(LIGHT_CYAN, BLACK);
+    for (int i = 0; i < (int)CMD_COUNT; i++) {
+        print("  ");
+        print(commands[i].name);
+        print("\t- ");
+        print(commands[i].desc);
+        print("\n");
+    }
+}
+
+// ─── Ядро ──────────────────────────────────────────────
 void kernel_main(void) {
-    // Очищаем экран
     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
         vga[i] = (BLACK << 12) | (' ');
 
-    // ASCII-арт логотип — жёлтый
     set_color(YELLOW, BLACK);
     center_print("  _     _                          ___  _____  ", 4);
     center_print(" | |   (_)_ __ ___   ___  _ __   / _ \\/ ___/  ", 5);
@@ -125,24 +168,19 @@ void kernel_main(void) {
     center_print(" | |___| | | | | | | (_) | | | || |_| |___) | ", 7);
     center_print(" |_____|_|_| |_| |_|\\___/|_| |_| \\___//____/  ", 8);
 
-    // Версия — белый
     set_color(WHITE, BLACK);
     center_print("v0.1  --  clean, minimal, yours.", 10);
 
-    // Разделитель — тёмно-серый
     set_color(DARK_GREY, BLACK);
     center_print("----------------------------------------", 12);
 
-    // Авторы — светло-серый
     set_color(LIGHT_GREY, BLACK);
     center_print("Developed with Claude Sonnet 4.6", 14);
     center_print("Inspired by VibeOS", 15);
 
-    // Статус загрузки — зелёный
     set_color(LIGHT_GREEN, BLACK);
     center_print("[ OK ] Booting Limon OS...", 18);
 
-    // Шелл
     set_color(YELLOW, BLACK);
     cursor_x = 0;
     cursor_y = 21;
@@ -161,32 +199,27 @@ void kernel_main(void) {
             cursor_x = 0;
             cursor_y++;
 
-            // Команды
-            if (kstrcmp(buf, "help") == 0) {
-                set_color(LIGHT_CYAN, BLACK);
-                print("  help    - show commands\n");
-                print("  about   - system info\n");
-                print("  clear   - clear screen\n");
-                print("  uname   - kernel version\n");
-            } else if (kstrcmp(buf, "about") == 0) {
-                set_color(LIGHT_GREY, BLACK);
-                print("  Limon OS v0.1\n");
-                print("  Developed with Claude Sonnet 4.6\n");
-                print("  Inspired by VibeOS\n");
-            } else if (kstrcmp(buf, "uname") == 0) {
-                set_color(WHITE, BLACK);
-                print("  Limon OS v0.1 i386\n");
-            } else if (kstrcmp(buf, "clear") == 0) {
-                for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
-                    vga[i] = (BLACK << 12) | (' ');
-                cursor_x = 0;
-                cursor_y = 0;
-            } else if (buf_len > 0) {
-                set_color(LIGHT_RED, BLACK);
-                print("  unknown command: ");
-                set_color(WHITE, BLACK);
-                print(buf);
-                print("\n");
+            // echo отдельно — передаём аргументы
+            if (buf_len > 5 &&
+                buf[0]=='e' && buf[1]=='c' && buf[2]=='h' &&
+                buf[3]=='o' && buf[4]==' ') {
+                cmd_echo(buf + 5);
+            } else {
+                int found = 0;
+                for (int i = 0; i < (int)CMD_COUNT; i++) {
+                    if (kstrcmp(buf, commands[i].name) == 0) {
+                        commands[i].func();
+                        found = 1;
+                        break;
+                    }
+                }
+                if (!found && buf_len > 0) {
+                    set_color(LIGHT_RED, BLACK);
+                    print("  unknown command: ");
+                    set_color(WHITE, BLACK);
+                    print(buf);
+                    print("\n");
+                }
             }
 
             buf_len = 0;
