@@ -1,5 +1,39 @@
 #include <stdint.h>
 
+// Порты ввода-вывода
+static inline uint8_t inb(uint16_t port) {
+    uint8_t val;
+    __asm__ volatile ("inb %1, %0" : "=a"(val) : "Nd"(port));
+    return val;
+}
+
+// Клавиатура PS/2
+#define KEYBOARD_PORT 0x60
+
+static const char keymap[] = {
+    0, 0, '1','2','3','4','5','6','7','8','9','0','-','=','\b',
+    '\t','q','w','e','r','t','y','u','i','o','p','[',']','\n',
+    0,'a','s','d','f','g','h','j','k','l',';','\'','`',
+    0,'\\','z','x','c','v','b','n','m',',','.','/',0,
+    '*',0,' '
+};
+
+static char read_key(void) {
+    uint8_t scan;
+    
+    // Ждём пока буфер клавиатуры не будет готов
+    while (!(inb(0x64) & 0x01));
+    
+    scan = inb(KEYBOARD_PORT);
+    
+    // Игнорируем отпускание клавиши (0x80+)
+    if (scan & 0x80) return 0;
+
+    if (scan < sizeof(keymap))
+        return keymap[scan];
+    return 0;
+}
+
 #define VGA_ADDRESS 0xB8000
 #define VGA_WIDTH   80
 #define VGA_HEIGHT  25
@@ -88,5 +122,37 @@ void kernel_main(void) {
     set_color(LIGHT_GREEN, BLACK);
     center_print("[ OK ] Booting Limon OS...", 18);
 
-    while (1) {}
+    // Шелл
+    set_color(YELLOW, BLACK);
+    cursor_x = 0;
+    cursor_y = 21;
+    print("limon> ");
+    set_color(WHITE, BLACK);
+
+    char buf[80];
+    int buf_len = 0;
+
+    while (1) {
+        char c = read_key();
+        if (c == 0) continue;
+
+        if (c == '\n') {
+            cursor_x = 0;
+            cursor_y++;
+            buf[buf_len] = '\0';
+            buf_len = 0;
+            set_color(YELLOW, BLACK);
+            print("limon> ");
+            set_color(WHITE, BLACK);
+        } else if (c == '\b') {
+            if (buf_len > 0) {
+                buf_len--;
+                cursor_x--;
+                vga[cursor_y * VGA_WIDTH + cursor_x] = (current_color << 8) | ' ';
+            }
+        } else {
+            buf[buf_len++] = c;
+            vga_putchar(c);
+        }
+    }
 }
