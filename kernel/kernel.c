@@ -1,5 +1,10 @@
 #include <stdint.h>
 
+static int kstrcmp(const char* a, const char* b) {
+    while (*a && *b && *a == *b) { a++; b++; }
+    return *a - *b;
+}
+
 // Порты ввода-вывода
 static inline uint8_t inb(uint16_t port) {
     uint8_t val;
@@ -61,10 +66,24 @@ static int cursor_x = 0;
 static int cursor_y = 0;
 static uint8_t current_color = 0x0F;
 
+static void scroll(void) {
+    // Сдвигаем все строки вверх на одну
+    for (int y = 0; y < VGA_HEIGHT - 1; y++)
+        for (int x = 0; x < VGA_WIDTH; x++)
+            vga[y * VGA_WIDTH + x] = vga[(y + 1) * VGA_WIDTH + x];
+
+    // Очищаем последнюю строку
+    for (int x = 0; x < VGA_WIDTH; x++)
+        vga[(VGA_HEIGHT - 1) * VGA_WIDTH + x] = (BLACK << 12) | (' ');
+
+    cursor_y = VGA_HEIGHT - 1;
+}
+
 static void vga_putchar(char c) {
     if (c == '\n') {
         cursor_x = 0;
         cursor_y++;
+        if (cursor_y >= VGA_HEIGHT) scroll();
         return;
     }
     vga[cursor_y * VGA_WIDTH + cursor_x] = (uint16_t)c | (current_color << 8);
@@ -72,6 +91,7 @@ static void vga_putchar(char c) {
     if (cursor_x >= VGA_WIDTH) {
         cursor_x = 0;
         cursor_y++;
+        if (cursor_y >= VGA_HEIGHT) scroll();
     }
 }
 
@@ -137,9 +157,38 @@ void kernel_main(void) {
         if (c == 0) continue;
 
         if (c == '\n') {
+            buf[buf_len] = '\0';
             cursor_x = 0;
             cursor_y++;
-            buf[buf_len] = '\0';
+
+            // Команды
+            if (kstrcmp(buf, "help") == 0) {
+                set_color(LIGHT_CYAN, BLACK);
+                print("  help    - show commands\n");
+                print("  about   - system info\n");
+                print("  clear   - clear screen\n");
+                print("  uname   - kernel version\n");
+            } else if (kstrcmp(buf, "about") == 0) {
+                set_color(LIGHT_GREY, BLACK);
+                print("  Limon OS v0.1\n");
+                print("  Developed with Claude Sonnet 4.6\n");
+                print("  Inspired by VibeOS\n");
+            } else if (kstrcmp(buf, "uname") == 0) {
+                set_color(WHITE, BLACK);
+                print("  Limon OS v0.1 i386\n");
+            } else if (kstrcmp(buf, "clear") == 0) {
+                for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
+                    vga[i] = (BLACK << 12) | (' ');
+                cursor_x = 0;
+                cursor_y = 0;
+            } else if (buf_len > 0) {
+                set_color(LIGHT_RED, BLACK);
+                print("  unknown command: ");
+                set_color(WHITE, BLACK);
+                print(buf);
+                print("\n");
+            }
+
             buf_len = 0;
             set_color(YELLOW, BLACK);
             print("limon> ");
@@ -151,8 +200,10 @@ void kernel_main(void) {
                 vga[cursor_y * VGA_WIDTH + cursor_x] = (current_color << 8) | ' ';
             }
         } else {
-            buf[buf_len++] = c;
-            vga_putchar(c);
+            if (buf_len < 79) {
+                buf[buf_len++] = c;
+                vga_putchar(c);
+            }
         }
     }
 }
