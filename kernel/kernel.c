@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include "gdt.h"
+#include "idt.h"
 
 // ─── VGA ───────────────────────────────────────────────
 #define VGA_ADDRESS 0xB8000
@@ -82,7 +83,14 @@ static inline uint8_t inb(uint16_t port) {
     return val;
 }
 
-#define KEYBOARD_PORT 0x60
+static inline void outb(uint16_t port, uint8_t val) {
+    __asm__ volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
+}
+
+// Буфер клавиатуры
+static volatile char key_buf[256];
+static volatile int  key_head = 0;
+static volatile int  key_tail = 0;
 
 static const char keymap[] = {
     0, 0, '1','2','3','4','5','6','7','8','9','0','-','=','\b',
@@ -92,13 +100,22 @@ static const char keymap[] = {
     '*',0,' '
 };
 
+void keyboard_handler(void) {
+    uint8_t scan = inb(0x60);
+    if (!(scan & 0x80)) {
+        if (scan < sizeof(keymap) && keymap[scan]) {
+            key_buf[key_head] = keymap[scan];
+            key_head = (key_head + 1) % 256;
+        }
+    }
+    outb(0x20, 0x20); // EOI
+}
+
 static char read_key(void) {
-    uint8_t scan;
-    while (!(inb(0x64) & 0x01));
-    scan = inb(KEYBOARD_PORT);
-    if (scan & 0x80) return 0;
-    if (scan < sizeof(keymap)) return keymap[scan];
-    return 0;
+    if (key_head == key_tail) return 0;
+    char c = key_buf[key_tail];
+    key_tail = (key_tail + 1) % 256;
+    return c;
 }
 
 // ─── Команды ───────────────────────────────────────────
@@ -160,6 +177,7 @@ static void cmd_help(void) {
 // ─── Ядро ──────────────────────────────────────────────
 void kernel_main(void) {
     gdt_init();
+    idt_init();
     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
         vga[i] = (BLACK << 12) | (' ');
 
