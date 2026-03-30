@@ -33,7 +33,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main
           git add build.no
           git commit -m "chore: bump build number to b$(cat build.no) [skip ci]"
           git push
