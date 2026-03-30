@@ -206,7 +206,7 @@ void kernel_main(void) {
 
     set_color(WHITE, BLACK);
     center_print(LIMON_VERSION_FULL, 10);
-    center_print("clean, minimal, yours.", 10);
+    center_print("clean, minimal, yours.", 11);
 
     set_color(DARK_GREY, BLACK);
     center_print("----------------------------------------", 12);
