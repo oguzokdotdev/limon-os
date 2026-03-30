@@ -18,6 +18,7 @@ jobs:
 
       - name: Build
         run: |
+          git pull --rebase origin main
           make
           echo "BUILD_NUMBER=$(cat build.no)" >> $GITHUB_ENV
           echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
@@ -27,6 +28,12 @@ jobs:
         with:
           name: limon-b${{ env.BUILD_NUMBER }}-${{ env.SHORT_SHA }}
           path: limon_v*.iso
-
+          
       - name: Save Builder Number
-        run: make commit-build
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
+          git add build.no
+          git commit -m "chore: bump build number to b$(cat build.no) [skip ci]"
+          git push

@@ -7,23 +7,24 @@ VERSION          = 0.1.1
 CODENAME         = sicily
 CODENAME_DISPLAY = Sicily
 
-_BUILD_INC      := $(shell echo $$(( $$(cat build.no) + 1 )) > build.no)
-BUILD           := $(shell cat build.no)
+BUILD := $(shell cat build.no)
 
-KERNEL_BIN = kernel.bin
-ISO         = limon_v$(VERSION)_$(CODENAME)_b$(BUILD).iso
+all: iso/boot/kernel.bin
 
-all: $(ISO)
-
-kernel/version.h:
-	@echo "#ifndef VERSION_H"                                                      > kernel/version.h
-	@echo "#define VERSION_H"                                                     >> kernel/version.h
-	@echo "#define LIMON_VERSION_STRING \"$(VERSION)\""                           >> kernel/version.h
-	@echo "#define LIMON_CODENAME       \"$(CODENAME_DISPLAY)\""                  >> kernel/version.h
-	@echo "#define LIMON_VERSION_FULL   \"LimonOS $(CODENAME_DISPLAY) (v$(VERSION))\"" >> kernel/version.h
-	@echo "#define LIMON_ARCH           \"i386\""                                 >> kernel/version.h
-	@echo "#define LIMON_BUILD          $(BUILD)"                                 >> kernel/version.h
-	@echo "#endif"                                                                >> kernel/version.h
+kernel/version.h: Makefile
+	@printf '#ifndef VERSION_H\n#define VERSION_H\n' > kernel/version.h.tmp
+	@printf '#define LIMON_VERSION_STRING "%s"\n' "$(VERSION)"          >> kernel/version.h.tmp
+	@printf '#define LIMON_CODENAME       "%s"\n' "$(CODENAME_DISPLAY)" >> kernel/version.h.tmp
+	@printf '#define LIMON_VERSION_FULL   "LimonOS %s (v%s)"\n' "$(CODENAME_DISPLAY)" "$(VERSION)" >> kernel/version.h.tmp
+	@printf '#define LIMON_ARCH           "i386"\n'                     >> kernel/version.h.tmp
+	@printf '#define LIMON_BUILD          %s\n' "$(BUILD)"              >> kernel/version.h.tmp
+	@printf '#endif\n'                                                   >> kernel/version.h.tmp
+	@if ! cmp -s kernel/version.h.tmp kernel/version.h 2>/dev/null; then \
+		mv kernel/version.h.tmp kernel/version.h; \
+		echo "  --> version.h updated (b$(BUILD))"; \
+	else \
+		rm kernel/version.h.tmp; \
+	fi
 
 boot.o: boot/boot.asm
 	$(AS) -f elf32 $< -o $@
@@ -40,29 +41,44 @@ gdt.o: kernel/gdt.c
 idt.o: kernel/idt.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(KERNEL_BIN): boot.o idt_asm.o kernel.o gdt.o idt.o
+kernel.bin: boot.o idt_asm.o kernel.o gdt.o idt.o
 	ld $(LDFLAGS) -o $@ $^
 
-$(ISO): $(KERNEL_BIN)
+iso/boot/kernel.bin: kernel.bin
+	$(eval BUILD := $(shell echo $$(( $(BUILD) + 1 ))))
+	@echo $(BUILD) > build.no
+	@printf '#ifndef VERSION_H\n#define VERSION_H\n' > kernel/version.h
+	@printf '#define LIMON_VERSION_STRING "%s"\n' "$(VERSION)"          >> kernel/version.h
+	@printf '#define LIMON_CODENAME       "%s"\n' "$(CODENAME_DISPLAY)" >> kernel/version.h
+	@printf '#define LIMON_VERSION_FULL   "LimonOS %s (v%s)"\n' "$(CODENAME_DISPLAY)" "$(VERSION)" >> kernel/version.h
+	@printf '#define LIMON_ARCH           "i386"\n'                     >> kernel/version.h
+	@printf '#define LIMON_BUILD          %s\n' "$(BUILD)"              >> kernel/version.h
+	@printf '#endif\n'                                                   >> kernel/version.h
+	$(CC) $(CFLAGS) -c kernel/kernel.c -o kernel.o
+	ld $(LDFLAGS) -o kernel.bin boot.o idt_asm.o kernel.o gdt.o idt.o
 	mkdir -p iso/boot/grub
-	cp $(KERNEL_BIN) iso/boot/kernel.bin
+	cp kernel.bin iso/boot/kernel.bin
 	cp boot/grub.cfg iso/boot/grub/grub.cfg
-	grub-mkrescue -o $(ISO) iso
-	@echo "  --> Build $(BUILD) complete: $(ISO)"
+	grub-mkrescue -o limon_v$(VERSION)_$(CODENAME)_b$(BUILD).iso iso
+	@echo limon_v$(VERSION)_$(CODENAME)_b$(BUILD).iso > last.iso
+	@echo "  --> Build $(BUILD) complete: limon_v$(VERSION)_$(CODENAME)_b$(BUILD).iso"
+
+iso: iso/boot/kernel.bin
+
+run: iso/boot/kernel.bin
+	qemu-system-i386 -cdrom $$(cat last.iso)
 
 commit-build:
 	git config --global user.name "github-actions[bot]"
 	git config --global user.email "github-actions[bot]@users.noreply.github.com"
+	git pull --rebase origin main
 	git add build.no
 	git commit -m "chore: bump build number to b$(BUILD) [skip ci]"
 	git push
 
-run: $(ISO)
-	qemu-system-i386 -cdrom $(ISO)
-
 clean:
-	rm -f *.o $(KERNEL_BIN) limon_*.iso
+	rm -f *.o kernel.bin limon_*.iso
 	rm -rf iso
-	rm -f kernel/version.h
+	rm -f kernel/version.h last.iso
 
-.PHONY: all run clean commit-build
+.PHONY: all iso run clean commit-build
