@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-        contents: write
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -17,12 +17,15 @@ jobs:
         run: sudo apt install -y gcc nasm qemu-system-x86 grub-pc-bin grub-common xorriso mtools
 
       - name: Build
-        run: make
+        run: |
+          make
+          echo "BUILD_NUMBER=$(cat build.no)" >> $GITHUB_ENV
+          echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
-          name: limon-os-iso
+          name: limon-b${{ env.BUILD_NUMBER }}-${{ env.SHORT_SHA }}
           path: limon_v*.iso
 
       - name: Save Builder Number
