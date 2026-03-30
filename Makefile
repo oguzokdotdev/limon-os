@@ -50,6 +50,13 @@ $(ISO): $(KERNEL_BIN)
 	grub-mkrescue -o $(ISO) iso
 	@echo "  --> Build $(BUILD) complete: $(ISO)"
 
+commit-build:
+	git config --global user.name "github-actions[bot]"
+	git config --global user.email "github-actions[bot]@users.noreply.github.com"
+	git add build.no
+	git commit -m "chore: bump build number to b$(BUILD) [skip ci]"
+	git push
+
 run: $(ISO)
 	qemu-system-i386 -cdrom $(ISO)
 
@@ -58,4 +65,4 @@ clean:
 	rm -rf iso
 	rm -f kernel/version.h
 
-.PHONY: all run clean
+.PHONY: all run clean commit-build
