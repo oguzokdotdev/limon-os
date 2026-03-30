@@ -3,6 +3,15 @@
 #include "idt.h"
 #include "version.h"
 
+// ─── Multiboot ─────────────────────────────────────────
+#define MULTIBOOT_MAGIC 0x2BADB002
+
+typedef struct {
+    uint32_t flags;
+    uint32_t mem_lower;
+    uint32_t mem_upper;
+} MultibootInfo;
+
 // ─── VGA ───────────────────────────────────────────────
 #define VGA_ADDRESS 0xB8000
 #define VGA_WIDTH   80
@@ -76,9 +85,11 @@ static void print_int(int n) {
     char buf[12];
     int i = 0;
     if (n == 0) { buf[i++] = '0'; }
-    else { int d = 0, tmp = n;
-           while(tmp){d++;tmp/=10;}
-           for(int j=d-1;j>=0;j--){buf[j]='0'+(n%10);n/=10;i++;} }
+    else {
+        int d = 0, tmp = n;
+        while (tmp) { d++; tmp /= 10; }
+        for (int j = d - 1; j >= 0; j--) { buf[j] = '0' + (n % 10); n /= 10; i++; }
+    }
     buf[i] = '\0';
     print(buf);
 }
@@ -99,7 +110,22 @@ static inline void outb(uint16_t port, uint8_t val) {
     __asm__ volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
 }
 
-// Буфер клавиатуры
+// ─── CPUID ─────────────────────────────────────────────
+static void get_cpu_vendor(char* out) {
+    uint32_t ebx, ecx, edx;
+    __asm__ volatile (
+        "cpuid"
+        : "=b"(ebx), "=c"(ecx), "=d"(edx)
+        : "a"(0)
+    );
+    // vendor string: EBX EDX ECX
+    for (int i = 0; i < 4; i++) out[i]     = (ebx >> (i * 8)) & 0xFF;
+    for (int i = 0; i < 4; i++) out[4 + i] = (edx >> (i * 8)) & 0xFF;
+    for (int i = 0; i < 4; i++) out[8 + i] = (ecx >> (i * 8)) & 0xFF;
+    out[12] = '\0';
+}
+
+// ─── Клавиатура ────────────────────────────────────────
 static volatile char key_buf[256];
 static volatile int  key_head = 0;
 static volatile int  key_tail = 0;
@@ -120,7 +146,7 @@ void keyboard_handler(void) {
             key_head = (key_head + 1) % 256;
         }
     }
-    outb(0x20, 0x20); // EOI
+    outb(0x20, 0x20);
 }
 
 static char read_key(void) {
@@ -138,6 +164,9 @@ typedef struct {
     const char* desc;
     cmd_func    func;
 } Command;
+
+// mem_upper хранится глобально после инициализации
+static uint32_t g_mem_upper = 0;
 
 static void cmd_help(void);
 
@@ -171,11 +200,77 @@ static void cmd_echo(char* args) {
     print("\n");
 }
 
+static void cmd_fetch(void) {
+    char cpu[13];
+    get_cpu_vendor(cpu);
+
+    uint32_t mem_mib = (g_mem_upper + 1024) / 1024;
+
+    const char* art[] = {
+        " #       ",
+        " #       ",
+        " #       ",
+        " #       ",
+        " #       ",
+        " ####### ",
+    };
+
+    print("\n");
+
+    // строки: арт слева (9 символов) + поле справа
+    // 6 строк арта = 6 полей, потом 2 поля без арта
+
+    struct { const char* key; } fields[8] = {
+        {"OS"}, {"Codename"}, {"Build"}, {"Arch"},
+        {"CPU"}, {"Memory"}, {"Display"}, {"Shell"},
+    };
+
+    for (int i = 0; i < 8; i++) {
+        // арт
+        set_color(YELLOW, BLACK);
+        print(i < 6 ? art[i] : "         ");
+
+        // ключ
+        set_color(LIGHT_CYAN, BLACK);
+        print(fields[i].key);
+        print(": ");
+
+        // значение
+        set_color(WHITE, BLACK);
+        switch (i) {
+            case 0: print(LIMON_VERSION_FULL); break;
+            case 1: print(LIMON_CODENAME); break;
+            case 2: print("b"); print_int(LIMON_BUILD); break;
+            case 3: print(LIMON_ARCH); break;
+            case 4: print(cpu); break;
+            case 5: print_int(mem_mib); print(" MiB"); break;
+            case 6: print("VGA 80x25 16c"); break;
+            case 7: print("limon"); break;
+        }
+        print("\n");
+    }
+
+    // цветная полоска
+    print("         ");
+    uint8_t colors[] = {BLACK, RED, GREEN, YELLOW,
+                        BLUE, MAGENTA, CYAN, LIGHT_GREY,
+                        DARK_GREY, LIGHT_RED, LIGHT_GREEN, LIGHT_CYAN,
+                        LIGHT_BLUE, LIGHT_MAGENTA, YELLOW, WHITE};
+    for (int i = 0; i < 16; i++) {
+        set_color(colors[i], colors[i]);
+        vga_putchar(' ');
+        vga_putchar(' ');
+    }
+    set_color(WHITE, BLACK);
+    print("\n\n");
+}
+
 static const Command commands[] = {
-    {"help",  "show commands",  cmd_help},
-    {"about", "system info",    cmd_about},
-    {"clear", "clear screen",   cmd_clear},
-    {"uname", "kernel version", cmd_uname},
+    {"help",  "show commands",       cmd_help},
+    {"about", "system info",         cmd_about},
+    {"clear", "clear screen",        cmd_clear},
+    {"uname", "kernel version",      cmd_uname},
+    {"limonfetch", "system fetch",        cmd_fetch},
 };
 #define CMD_COUNT (sizeof(commands) / sizeof(commands[0]))
 
@@ -191,9 +286,14 @@ static void cmd_help(void) {
 }
 
 // ─── Ядро ──────────────────────────────────────────────
-void kernel_main(void) {
+void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     gdt_init();
     idt_init();
+
+    // читаем память из multiboot
+    if (magic == MULTIBOOT_MAGIC && mbi && (mbi->flags & 0x1))
+        g_mem_upper = mbi->mem_upper;
+
     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
         vga[i] = (BLACK << 12) | (' ');
 
@@ -236,7 +336,6 @@ void kernel_main(void) {
             cursor_x = 0;
             cursor_y++;
 
-            // echo отдельно — передаём аргументы
             if (buf_len > 5 &&
                 buf[0]=='e' && buf[1]=='c' && buf[2]=='h' &&
                 buf[3]=='o' && buf[4]==' ') {
