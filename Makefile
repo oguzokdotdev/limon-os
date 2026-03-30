@@ -6,6 +6,8 @@ LDFLAGS = -m elf_i386 -T linker.ld
 VERSION          = 0.1.1
 CODENAME         = sicily
 CODENAME_DISPLAY = Sicily
+
+_BUILD_INC      := $(shell echo $$(( $$(cat build.no) + 1 )) > build.no)
 BUILD           := $(shell cat build.no)
 
 KERNEL_BIN = kernel.bin
@@ -46,7 +48,6 @@ $(ISO): $(KERNEL_BIN)
 	cp $(KERNEL_BIN) iso/boot/kernel.bin
 	cp boot/grub.cfg iso/boot/grub/grub.cfg
 	grub-mkrescue -o $(ISO) iso
-	@echo $$(( $(BUILD) + 1 )) > build.no
 	@echo "  --> Build $(BUILD) complete: $(ISO)"
 
 run: $(ISO)
