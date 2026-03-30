@@ -58,3 +58,4 @@ dkms.conf
 *.o
 iso/
 *.iso
+kernel/version.h

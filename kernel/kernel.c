@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "gdt.h"
 #include "idt.h"
+#include "version.h"
 
 // ─── VGA ───────────────────────────────────────────────
 #define VGA_ADDRESS 0xB8000
@@ -71,6 +72,17 @@ static void center_print(const char* str, int row) {
     print(str);
 }
 
+static void print_int(int n) {
+    char buf[12];
+    int i = 0;
+    if (n == 0) { buf[i++] = '0'; }
+    else { int d = 0, tmp = n;
+           while(tmp){d++;tmp/=10;}
+           for(int j=d-1;j>=0;j--){buf[j]='0'+(n%10);n/=10;i++;} }
+    buf[i] = '\0';
+    print(buf);
+}
+
 // ─── Утилиты ───────────────────────────────────────────
 static int kstrcmp(const char* a, const char* b) {
     while (*a && *b && *a == *b) { a++; b++; }
@@ -131,14 +143,18 @@ static void cmd_help(void);
 
 static void cmd_about(void) {
     set_color(LIGHT_GREY, BLACK);
-    print("  Limon OS v0.1\n");
+    print("  " LIMON_VERSION_FULL "\n");
+    print("  Build: b"); print_int(LIMON_BUILD); print("\n");
+    print("  Arch: " LIMON_ARCH "\n");
     print("  Developed with Claude Sonnet 4.6\n");
     print("  Inspired by VibeOS\n");
 }
 
 static void cmd_uname(void) {
     set_color(WHITE, BLACK);
-    print("  Limon OS v0.1 i386\n");
+    print("  " LIMON_VERSION_FULL " b");
+    print_int(LIMON_BUILD);
+    print("\n");
 }
 
 static void cmd_clear(void) {
@@ -189,7 +205,8 @@ void kernel_main(void) {
     center_print(" |_____|_|_| |_| |_|\\___/|_| |_| \\___//____/  ", 8);
 
     set_color(WHITE, BLACK);
-    center_print("v0.1  --  clean, minimal, yours.", 10);
+    center_print(LIMON_VERSION_FULL, 10);
+    center_print("clean, minimal, yours.", 10);
 
     set_color(DARK_GREY, BLACK);
     center_print("----------------------------------------", 12);

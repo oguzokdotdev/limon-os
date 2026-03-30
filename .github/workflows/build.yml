@@ -1,0 +1,25 @@
+name: Build Limon OS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt install -y gcc nasm qemu-system-x86 grub-pc-bin grub-common xorriso mtools
+
+      - name: Build
+        run: make
+
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: limon-os-iso
+          path: limon_v*.iso
