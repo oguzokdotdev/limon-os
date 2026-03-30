@@ -26,6 +26,7 @@ static void idt_set(int i, uint32_t base, uint16_t sel, uint8_t flags) {
 // Объявления обработчиков из idt_asm.asm
 extern void isr0(void);
 extern void isr_keyboard(void);
+extern void isr_timer(void);
 
 // Обработчики исключений (вызываются из ASM)
 void isr0_handler(void) {
@@ -49,12 +50,13 @@ void idt_init(void) {
     outb(0x21, 0x20); outb(0xA1, 0x28);
     outb(0x21, 0x04); outb(0xA1, 0x02);
     outb(0x21, 0x01); outb(0xA1, 0x01);
-    outb(0x21, 0xFD); outb(0xA1, 0xFF); // маскируем всё кроме клавиатуры
+    outb(0x21, 0xFC); outb(0xA1, 0xFF); // Разрешаем IRQ0 (таймер) и IRQ1 (клава)
 
     // ISR 0 — деление на ноль
     idt_set(0,    (uint32_t)isr0,         0x08, 0x8E);
     // IRQ1 — клавиатура (0x20 + 1 = 0x21)
     idt_set(0x21, (uint32_t)isr_keyboard, 0x08, 0x8E);
+    idt_set(0x20, (uint32_t)isr_timer, 0x08, 0x8E);
 
     __asm__ volatile ("lidt (%0)" : : "r"(&idt_ptr));
     __asm__ volatile ("sti");  // включаем прерывания

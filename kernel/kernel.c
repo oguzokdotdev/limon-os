@@ -94,6 +94,12 @@ static void print_int(int n) {
     print(buf);
 }
 
+// Вывод числа с ведущим нулём (для HH:MM:SS)
+static void print_padded2(uint32_t n) {
+    vga_putchar('0' + (n / 10));
+    vga_putchar('0' + (n % 10));
+}
+
 // ─── Утилиты ───────────────────────────────────────────
 static int kstrcmp(const char* a, const char* b) {
     while (*a && *b && *a == *b) { a++; b++; }
@@ -118,7 +124,6 @@ static void get_cpu_vendor(char* out) {
         : "=b"(ebx), "=c"(ecx), "=d"(edx)
         : "a"(0)
     );
-    // vendor string: EBX EDX ECX
     for (int i = 0; i < 4; i++) out[i]     = (ebx >> (i * 8)) & 0xFF;
     for (int i = 0; i < 4; i++) out[4 + i] = (edx >> (i * 8)) & 0xFF;
     for (int i = 0; i < 4; i++) out[8 + i] = (ecx >> (i * 8)) & 0xFF;
@@ -149,6 +154,17 @@ void keyboard_handler(void) {
     outb(0x20, 0x20);
 }
 
+// ─── Таймер ────────────────────────────────────────────
+static uint32_t timer_ticks = 0;
+static uint32_t uptime_seconds = 0;
+
+void timer_handler(void) {
+    timer_ticks++;
+    if (timer_ticks % 100 == 0)
+        uptime_seconds++;
+    outb(0x20, 0x20);
+}
+
 static char read_key(void) {
     if (key_head == key_tail) return 0;
     char c = key_buf[key_tail];
@@ -165,7 +181,6 @@ typedef struct {
     cmd_func    func;
 } Command;
 
-// mem_upper хранится глобально после инициализации
 static uint32_t g_mem_upper = 0;
 
 static void cmd_help(void);
@@ -206,6 +221,10 @@ static void cmd_fetch(void) {
 
     uint32_t mem_mib = (g_mem_upper + 1024) / 1024;
 
+    uint32_t h = uptime_seconds / 3600;
+    uint32_t m = (uptime_seconds % 3600) / 60;
+    uint32_t s = uptime_seconds % 60;
+
     const char* art[] = {
         " #       ",
         " #       ",
@@ -217,25 +236,20 @@ static void cmd_fetch(void) {
 
     print("\n");
 
-    // строки: арт слева (9 символов) + поле справа
-    // 6 строк арта = 6 полей, потом 2 поля без арта
-
-    struct { const char* key; } fields[8] = {
-        {"OS"}, {"Codename"}, {"Build"}, {"Arch"},
-        {"CPU"}, {"Memory"}, {"Display"}, {"Shell"},
+    // 9 полей: добавили Uptime
+    const char* keys[] = {
+        "OS", "Codename", "Build", "Arch",
+        "CPU", "Memory", "Uptime", "Display", "Shell",
     };
 
-    for (int i = 0; i < 8; i++) {
-        // арт
+    for (int i = 0; i < 9; i++) {
         set_color(YELLOW, BLACK);
         print(i < 6 ? art[i] : "         ");
 
-        // ключ
         set_color(LIGHT_CYAN, BLACK);
-        print(fields[i].key);
+        print(keys[i]);
         print(": ");
 
-        // значение
         set_color(WHITE, BLACK);
         switch (i) {
             case 0: print(LIMON_VERSION_FULL); break;
@@ -244,8 +258,13 @@ static void cmd_fetch(void) {
             case 3: print(LIMON_ARCH); break;
             case 4: print(cpu); break;
             case 5: print_int(mem_mib); print(" MiB"); break;
-            case 6: print("VGA 80x25 16c"); break;
-            case 7: print("limon"); break;
+            case 6:
+                print_padded2(h); print(":");
+                print_padded2(m); print(":");
+                print_padded2(s);
+                break;
+            case 7: print("VGA 80x25 16c"); break;
+            case 8: print("limon"); break;
         }
         print("\n");
     }
@@ -265,12 +284,29 @@ static void cmd_fetch(void) {
     print("\n\n");
 }
 
+static void cmd_reboot(void) {
+    set_color(LIGHT_GREEN, BLACK);
+    print("  Rebooting...\n");
+    uint8_t val = 0;
+    while (val & 0x02) val = inb(0x64);
+    outb(0x64, 0xFE);
+    __asm__ volatile ("cli; hlt");
+}
+
+static void cmd_halt(void) {
+    set_color(LIGHT_RED, BLACK);
+    print("  System halted. You can close QEMU now.\n");
+    __asm__ volatile ("cli; hlt");
+}
+
 static const Command commands[] = {
-    {"help",  "show commands",       cmd_help},
-    {"about", "system info",         cmd_about},
-    {"clear", "clear screen",        cmd_clear},
-    {"uname", "kernel version",      cmd_uname},
-    {"limonfetch", "system fetch",        cmd_fetch},
+    {"help",       "show commands",  cmd_help},
+    {"about",      "system info",    cmd_about},
+    {"clear",      "clear screen",   cmd_clear},
+    {"uname",      "kernel version", cmd_uname},
+    {"limonfetch", "system fetch",   cmd_fetch},
+    {"reboot",     "reboot system",  cmd_reboot},
+    {"halt",       "halt system",    cmd_halt},
 };
 #define CMD_COUNT (sizeof(commands) / sizeof(commands[0]))
 
@@ -290,7 +326,11 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     gdt_init();
     idt_init();
 
-    // читаем память из multiboot
+    uint32_t divisor = 1193180 / 100;
+    outb(0x43, 0x36);
+    outb(0x40, (uint8_t)(divisor & 0xFF));
+    outb(0x40, (uint8_t)((divisor >> 8) & 0xFF));
+
     if (magic == MULTIBOOT_MAGIC && mbi && (mbi->flags & 0x1))
         g_mem_upper = mbi->mem_upper;
 
