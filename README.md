@@ -5,14 +5,14 @@
 Хобби-операционная система написанная с нуля для x86.  
 Вдохновлена [VibeOS](https://github.com/kaansenol5/VibeOS). Разработано с Claude Sonnet 4.6.
 
-**Актуальная версия: Sicily 0.1.1**
+**Актуальная версия: Sicily 0.1.2**
 
 ---
 
 ## Скриншоты
 
-![Bootscreen](screenshots/v0.1.1/bootscreen.png)
-![Shell](screenshots/v0.1.1/shell.png)
+![Bootscreen](screenshots/v0.1.2/bootscreen.png)
+![Shell](screenshots/v0.1.2/shell.png)
 
 ---
 
@@ -22,8 +22,9 @@
 - VGA драйвер с 16 цветами и скроллингом
 - Драйвер клавиатуры PS/2 через аппаратные прерывания (IDT)
 - GDT — сегментация памяти
+- PIT-таймер (100 Гц) - uptime в `limonfetch`
 - Интерактивный шелл с командами: `help`, `about`, `uname`, `clear`, `echo`, `limonfetch`
-- `limonfetch` — системная информация с CPU vendor, памятью и цветовой палитрой
+- `limonfetch` — системная информация с CPU vendor, памятью, uptime и цветовой палитрой
 
 ---
 
@@ -48,7 +49,7 @@ make run    # запустить в QEMU
 
 - ✅ v0.1.0 — VGA, клавиатура, GDT/IDT, шелл
 - ✅ v0.1.1 — версионирование, limonfetch, CI/CD
-- 🔲 v0.1.2 — reboot, halt, uptime
+- ✅ v0.1.2 — reboot, halt, uptime
 - 🔲 v0.2.0 — paging, kmalloc
 - 🔲 v0.3.0 — процессы, планировщик
 - 🔲 v0.4.0 — FAT32
