@@ -105,6 +105,16 @@ static int kstrcmp(const char* a, const char* b) {
     return *a - *b;
 }
 
+static void kstrcpy(char* dst, const char* src) {
+    while ((*dst++ = *src++));
+}
+
+static int kstrlen(const char* s) {
+    int n = 0;
+    while (s[n]) n++;
+    return n;
+}
+
 static inline uint8_t inb(uint16_t port) {
     uint8_t val;
     __asm__ volatile ("inb %1, %0" : "=a"(val) : "Nd"(port));
@@ -130,10 +140,14 @@ static void get_cpu_vendor(char* out) {
 }
 
 // --- Keyboard ---
+#define KEY_UP   0x01
+#define KEY_DOWN 0x02
+
 static volatile char key_buf[256];
 static volatile int  key_head = 0;
 static volatile int  key_tail = 0;
 static volatile int  shift_pressed = 0;
+static volatile int  e0_prefix = 0;
 
 static const char keymap[] = {
     0, 0, '1','2','3','4','5','6','7','8','9','0','-','=','\b',
@@ -153,6 +167,17 @@ static const char keymap_shift[] = {
 
 void keyboard_handler(void) {
     uint8_t scan = inb(0x60);
+
+    // extended scancode prefix
+    if (scan == 0xE0) { e0_prefix = 1; outb(0x20, 0x20); return; }
+
+    if (e0_prefix) {
+        e0_prefix = 0;
+        if (scan == 0x48) { key_buf[key_head] = KEY_UP;   key_head = (key_head + 1) % 256; }
+        if (scan == 0x50) { key_buf[key_head] = KEY_DOWN; key_head = (key_head + 1) % 256; }
+        outb(0x20, 0x20);
+        return;
+    }
 
     if (scan == 0x2A || scan == 0x36) { shift_pressed = 1; outb(0x20, 0x20); return; }
     if (scan == 0xAA || scan == 0xB6) { shift_pressed = 0; outb(0x20, 0x20); return; }
@@ -183,6 +208,22 @@ static char read_key(void) {
     char c = key_buf[key_tail];
     key_tail = (key_tail + 1) % 256;
     return c;
+}
+
+// --- History ---
+#define HISTORY_SIZE 16
+
+static char history[HISTORY_SIZE][80];
+static int  history_count = 0;
+static int  history_nav   = -1; // -1 = not navigating
+
+static void history_push(const char* cmd) {
+    if (cmd[0] == '\0') return;
+    // avoid duplicate of last entry
+    if (history_count > 0 &&
+        kstrcmp(history[(history_count - 1) % HISTORY_SIZE], cmd) == 0) return;
+    kstrcpy(history[history_count % HISTORY_SIZE], cmd);
+    history_count++;
 }
 
 // --- Commands ---
@@ -375,6 +416,8 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     print("limon> ");
     set_color(WHITE, BLACK);
 
+#define PROMPT_LEN 7  // strlen("limon> ")
+
     char buf[80];
     int buf_len = 0;
 
@@ -382,10 +425,56 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
         char c = read_key();
         if (c == 0) continue;
 
+        // --- History navigation ---
+        if (c == KEY_UP || c == KEY_DOWN) {
+            if (history_count == 0) continue;
+
+            if (c == KEY_UP) {
+                if (history_nav == -1)
+                    history_nav = history_count - 1;
+                else if (history_nav > 0)
+                    history_nav--;
+            } else {
+                if (history_nav == -1) continue;
+                history_nav++;
+                if (history_nav >= history_count) {
+                    // past newest: clear input
+                    history_nav = -1;
+                    // erase current line
+                    for (int i = buf_len; i > 0; i--) {
+                        cursor_x--;
+                        vga[cursor_y * VGA_WIDTH + cursor_x] = (current_color << 8) | ' ';
+                    }
+                    buf_len = 0;
+                    continue;
+                }
+            }
+
+            // erase current input on screen
+            for (int i = buf_len; i > 0; i--) {
+                cursor_x--;
+                vga[cursor_y * VGA_WIDTH + cursor_x] = (current_color << 8) | ' ';
+            }
+
+            // load history entry
+            const char* entry = history[history_nav % HISTORY_SIZE];
+            kstrcpy(buf, entry);
+            buf_len = kstrlen(buf);
+
+            // print it
+            set_color(WHITE, BLACK);
+            print(buf);
+            continue;
+        }
+
+        // --- Enter ---
         if (c == '\n') {
             buf[buf_len] = '\0';
             cursor_x = 0;
             cursor_y++;
+
+            history_push(buf);
+            history_nav = -1;
 
             if (buf_len > 5 &&
                 buf[0]=='e' && buf[1]=='c' && buf[2]=='h' &&
@@ -413,12 +502,16 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
             set_color(YELLOW, BLACK);
             print("limon> ");
             set_color(WHITE, BLACK);
+
+        // --- Backspace ---
         } else if (c == '\b') {
             if (buf_len > 0) {
                 buf_len--;
                 cursor_x--;
                 vga[cursor_y * VGA_WIDTH + cursor_x] = (current_color << 8) | ' ';
             }
+
+        // --- Regular char ---
         } else {
             if (buf_len < 79) {
                 buf[buf_len++] = c;
