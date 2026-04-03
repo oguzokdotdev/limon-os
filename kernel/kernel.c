@@ -125,6 +125,33 @@ static inline void outb(uint16_t port, uint8_t val) {
     __asm__ volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
 }
 
+static int katoi(const char* str) {
+    int res = 0;
+    while (*str >= '0' && *str <= '9') {
+        res = res * 10 + (*str - '0');
+        str++;
+    }
+    return res;
+}
+
+static int parse_args(char* str, char* argv[], int max_args) {
+    int argc = 0;
+    int in_word = 0;
+    while (*str) {
+        if (*str == ' ') {
+            *str = '\0';
+            in_word = 0;
+        } else if (!in_word) {
+            if (argc < max_args) {
+                argv[argc++] = str;
+                in_word = 1;
+            }
+        }
+        str++;
+    }
+    return argc;
+}
+
 // --- CPUID ---
 static void get_cpu_vendor(char* out) {
     uint32_t ebx, ecx, edx;
@@ -227,19 +254,20 @@ static void history_push(const char* cmd) {
 }
 
 // --- Commands ---
-typedef void (*cmd_func)(void);
+typedef void (*cmd_func)(char* args);
 
 typedef struct {
     const char* name;
     const char* desc;
+    int         category;
     cmd_func    func;
 } Command;
 
 static uint32_t g_mem_upper = 0;
 
-static void cmd_help(void);
+static void cmd_help(char* args);
 
-static void cmd_about(void) {
+static void cmd_about(char* args) {
     set_color(LIGHT_GREY, BLACK);
     print("  " LIMON_VERSION_FULL "\n");
     print("  Build: b"); print_int(LIMON_BUILD); print("\n");
@@ -248,14 +276,14 @@ static void cmd_about(void) {
     print("  Inspired by VibeOS\n");
 }
 
-static void cmd_uname(void) {
+static void cmd_uname(char* args) {
     set_color(WHITE, BLACK);
     print("  " LIMON_VERSION_FULL " b");
     print_int(LIMON_BUILD);
     print("\n");
 }
 
-static void cmd_clear(void) {
+static void cmd_clear(char* args) {
     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
         vga[i] = (BLACK << 12) | (' ');
     cursor_x = 0;
@@ -269,7 +297,7 @@ static void cmd_echo(char* args) {
     print("\n");
 }
 
-static void cmd_fetch(void) {
+static void cmd_fetch(char* args) {
     char cpu[13];
     get_cpu_vendor(cpu);
 
@@ -336,7 +364,7 @@ static void cmd_fetch(void) {
     print("\n\n");
 }
 
-static void cmd_reboot(void) {
+static void cmd_reboot(char* args) {
     set_color(LIGHT_GREEN, BLACK);
     print("  Rebooting...\n");
     uint8_t val = 0;
@@ -345,31 +373,65 @@ static void cmd_reboot(void) {
     __asm__ volatile ("cli; hlt");
 }
 
-static void cmd_halt(void) {
+static void cmd_halt(char* args) {
     set_color(LIGHT_RED, BLACK);
     print("  System halted. You can close QEMU now.\n");
     __asm__ volatile ("cli; hlt");
 }
 
 static const Command commands[] = {
-    {"help",       "show commands",  cmd_help},
-    {"about",      "system info",    cmd_about},
-    {"clear",      "clear screen",   cmd_clear},
-    {"uname",      "kernel version", cmd_uname},
-    {"limonfetch", "system fetch",   cmd_fetch},
-    {"reboot",     "reboot system",  cmd_reboot},
-    {"halt",       "halt system",    cmd_halt},
+    {"help",       "show commands",  2, cmd_help},
+    {"about",      "system info",    2, cmd_about},
+    {"clear",      "clear screen",   1, cmd_clear},
+    {"uname",      "kernel version", 2, cmd_uname},
+    {"limonfetch", "system fetch",   2, cmd_fetch},
+    {"reboot",     "reboot system",  1, cmd_reboot},
+    {"halt",       "halt system",    1, cmd_halt},
 };
 #define CMD_COUNT (sizeof(commands) / sizeof(commands[0]))
 
-static void cmd_help(void) {
+static void cmd_help(char* args) {
+    char* argv[4];
+    int argc = parse_args(args, argv, 4);
+
+    if (argc == 0) {
+        set_color(LIGHT_CYAN, BLACK);
+        print("  Help Categories:\n");
+        print("  1 - System Control\n");
+        print("  2 - Info & Utilities\n");
+        set_color(LIGHT_GREY, BLACK);
+        print("  Usage: help [category]\n");
+        return;
+    }
+
+    int cat = katoi(argv[0]);
+
     set_color(LIGHT_CYAN, BLACK);
-    for (int i = 0; i < (int)CMD_COUNT; i++) {
-        print("  ");
-        print(commands[i].name);
-        print("   - ");
-        print(commands[i].desc);
+    if (cat == 1) {
+        print("  --- 1: System Control ---\n");
+    } else if (cat == 2) {
+        print("  --- 2: Info & Utilities ---\n");
+    } else {
+        set_color(LIGHT_RED, BLACK);
+        print("  unknown category: ");
+        print(argv[0]);
         print("\n");
+        return;
+    }
+
+    for (int i = 0; i < (int)CMD_COUNT; i++) {
+        if (commands[i].category == cat) {
+            print("  ");
+            print(commands[i].name);
+            print("   - ");
+            print(commands[i].desc);
+            print("\n");
+        }
+    }
+    
+    // Explicitly add echo as it is built into the shell logic
+    if (cat == 2) {
+        print("  echo   - print text\n");
     }
 }
 
@@ -476,24 +538,34 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
             history_push(buf);
             history_nav = -1;
 
-            if (buf_len > 5 &&
-                buf[0]=='e' && buf[1]=='c' && buf[2]=='h' &&
-                buf[3]=='o' && buf[4]==' ') {
-                cmd_echo(buf + 5);
+            // Extract command name and args
+            char* cmd_name = buf;
+            char* cmd_args = "";
+            for (int i = 0; i < buf_len; i++) {
+                if (buf[i] == ' ') {
+                    buf[i] = '\0';
+                    cmd_args = &buf[i + 1];
+                    while (*cmd_args == ' ') cmd_args++; // skip extra spaces
+                    break;
+                }
+            }
+
+            if (kstrcmp(cmd_name, "echo") == 0) {
+                cmd_echo(cmd_args);
             } else {
                 int found = 0;
                 for (int i = 0; i < (int)CMD_COUNT; i++) {
-                    if (kstrcmp(buf, commands[i].name) == 0) {
-                        commands[i].func();
+                    if (kstrcmp(cmd_name, commands[i].name) == 0) {
+                        commands[i].func(cmd_args);
                         found = 1;
                         break;
                     }
                 }
-                if (!found && buf_len > 0) {
+                if (!found && kstrlen(cmd_name) > 0) {
                     set_color(LIGHT_RED, BLACK);
                     print("  unknown command: ");
                     set_color(WHITE, BLACK);
-                    print(buf);
+                    print(cmd_name);
                     print("\n");
                 }
             }
