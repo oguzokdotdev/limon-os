@@ -47,14 +47,146 @@ make run    # запустить в QEMU
 
 ## Roadmap
 
-- ✅ v0.1.0 — VGA, клавиатура, GDT/IDT, шелл
-- ✅ v0.1.1 — версионирование, limonfetch, CI/CD
-- ✅ v0.1.2 — reboot, halt, uptime
-- 🔲 v0.2.0 — paging, kmalloc
-- 🔲 v0.3.0 — процессы, планировщик
-- 🔲 v0.4.0 — FAT32
-- 🔲 v0.5.0 — userspace, syscalls
-- 🔲 v1.0.0 — GUI "Menton"
+<details>
+<summary><b>🍋 LimonOS Sicily</b> — v0.x.x</summary>
+
+<br>
+
+<details>
+<summary>✅ v0.1.0 — Core</summary>
+
+- VGA text driver
+- PS/2 keyboard via IDT
+- GDT, IDT
+- Interactive shell (`help`, `echo`, `clear`, `about`, `uname`)
+
+</details>
+
+<details>
+<summary>✅ v0.1.1 — Versioning & CI/CD</summary>
+
+- Version system with `build.no` and auto-generated `version.h`
+- `limonfetch` command
+- GitHub Actions CI/CD pipeline
+
+</details>
+
+<details>
+<summary>✅ v0.1.2 — System Control</summary>
+
+- `reboot`, `halt` commands
+- PIT timer at 100 Hz
+- `uptime` in `limonfetch`
+
+</details>
+
+<details>
+<summary>🔲 v0.1.3 — Shell UX</summary>
+
+- `help [n]` по страницам/категориям
+- История команд (стрелки ↑↓)
+- Парсинг аргументов
+- `lscmd`, `ver`
+- Shift, верхний регистр, полные спецсимволы
+
+</details>
+
+<details>
+<summary>🔲 v0.1.4 — CPU Exceptions</summary>
+
+- Обработчики #DE, #GP, #PF, #DF
+- `panic()` — экран с ошибкой и halt
+
+</details>
+
+<details>
+<summary>🔲 v0.1.5 — libc Foundation</summary>
+
+- `string.c` — strlen, strcmp, strcpy, strcat
+- `memory.c` — memset, memcpy, memmove
+- `convert.c` — itoa, atoi
+
+</details>
+
+<details>
+<summary>🔲 v0.1.6 — VGA Extended</summary>
+
+- Цвета текста и фона (`color fg bg`)
+- Скроллинг экрана
+- Аппаратный VGA курсор
+
+</details>
+
+<details>
+<summary>🔲 v0.1.7 — Verbose Boot</summary>
+
+- `[  OK  ]` / `[ WARN ]` / `[ FAIL ]` с цветами
+- Логирование каждого этапа инициализации
+
+</details>
+
+<details>
+<summary>🔲 v0.1.8 — Timers & RTC</summary>
+
+- Чтение реального времени из RTC
+- Команда `date`
+- Дата в `limonfetch`
+
+</details>
+
+<details>
+<summary>🔲 v0.1.9 — Refactoring</summary>
+
+- Единый `kernel.h`
+- Структура папок под v0.2.0
+- Ревизия CI/CD
+
+</details>
+
+<details>
+<summary>🔲 v0.2.0 — Memory</summary>
+
+- Paging
+- kmalloc
+
+</details>
+
+<details>
+<summary>🔲 v0.3.0 — Processes</summary>
+
+- Процессы
+- Планировщик
+
+</details>
+
+<details>
+<summary>🔲 v0.4.0 — FAT32</summary>
+
+- Файловая система FAT32
+
+</details>
+
+<details>
+<summary>🔲 v0.5.0 — Userspace & Syscalls</summary>
+
+- Userspace
+- Syscalls
+
+</details>
+
+</details>
+
+<details>
+<summary><b>🍋 LimonOS Menton</b> — v1.x.x</summary>
+
+<details>
+<summary>🔲 v1.0.0 — GUI</summary>
+
+- Графический интерфейс
+
+</details>
+
+</details>
 
 ---
 
