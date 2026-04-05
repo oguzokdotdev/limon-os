@@ -283,6 +283,12 @@ static void cmd_uname(char* args) {
     print("\n");
 }
 
+static void cmd_ver(char* args) {
+    set_color(WHITE, BLACK);
+    print("LimonOS " LIMON_CODENAME " v" LIMON_VERSION_STRING "-b"); print_int(LIMON_BUILD);
+    print("\n");
+}
+
 static void cmd_clear(char* args) {
     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
         vga[i] = (BLACK << 12) | (' ');
@@ -384,6 +390,7 @@ static const Command commands[] = {
     {"about",      "system info",    2, cmd_about},
     {"clear",      "clear screen",   1, cmd_clear},
     {"uname",      "kernel version", 2, cmd_uname},
+    {"ver",        "system version", 1, cmd_ver},
     {"limonfetch", "system fetch",   2, cmd_fetch},
     {"reboot",     "reboot system",  1, cmd_reboot},
     {"halt",       "halt system",    1, cmd_halt},
