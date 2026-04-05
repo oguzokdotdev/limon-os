@@ -7,6 +7,8 @@
 
 **Актуальная версия: Sicily 0.1.2**
 
+**Прототип интерфейса LimonOS Menton: <a href="https://limon.oguzok.tech/" target="_blank">click 🚀</a>**
+
 ---
 
 ## Скриншоты
