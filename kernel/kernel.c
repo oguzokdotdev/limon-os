@@ -195,7 +195,6 @@ static const char keymap_shift[] = {
 void keyboard_handler(void) {
     uint8_t scan = inb(0x60);
 
-    // extended scancode prefix
     if (scan == 0xE0) { e0_prefix = 1; outb(0x20, 0x20); return; }
 
     if (e0_prefix) {
@@ -242,11 +241,10 @@ static char read_key(void) {
 
 static char history[HISTORY_SIZE][80];
 static int  history_count = 0;
-static int  history_nav   = -1; // -1 = not navigating
+static int  history_nav   = -1;
 
 static void history_push(const char* cmd) {
     if (cmd[0] == '\0') return;
-    // avoid duplicate of last entry
     if (history_count > 0 &&
         kstrcmp(history[(history_count - 1) % HISTORY_SIZE], cmd) == 0) return;
     kstrcpy(history[history_count % HISTORY_SIZE], cmd);
@@ -268,24 +266,80 @@ static uint32_t g_mem_upper = 0;
 static void cmd_help(char* args);
 
 static void cmd_about(char* args) {
+    print("\n");
+    set_color(LIGHT_CYAN, BLACK);
+    print("         LimonOS " LIMON_CODENAME "\n");
+    set_color(WHITE, BLACK);
+    print("    \"Clean, minimal, yours.\"\n\n");
     set_color(LIGHT_GREY, BLACK);
-    print("  " LIMON_VERSION_FULL "\n");
-    print("  Build: b"); print_int(LIMON_BUILD); print("\n");
-    print("  Arch: " LIMON_ARCH "\n");
-    print("  Developed with Claude Sonnet 4.6\n");
-    print("  Inspired by VibeOS\n");
+    print("    Author:   oguzokdotdev AKA oguzok.tech\n");
+    print("    GitHub Repo:   oguzokdotdev/limon-os\n");
+    print("\n    Inspired by VibeOS.\n");
+    print("    Built with assistance from Claude & Gemini.\n");
+    print("\n");
 }
 
 static void cmd_uname(char* args) {
-    set_color(WHITE, BLACK);
-    print("  " LIMON_VERSION_FULL " b");
-    print_int(LIMON_BUILD);
-    print("\n");
+    char* argv[8];
+    int argc = parse_args(args, argv, 8);
+
+    if (argc == 0) {
+        set_color(WHITE, BLACK);
+        print("  LimonOS\n");
+        return;
+    }
+
+    if (kstrcmp(argv[0], "--help") == 0 || kstrcmp(argv[0], "-help") == 0) {
+        set_color(LIGHT_CYAN, BLACK);
+        print("  uname - print system information\n");
+        set_color(LIGHT_GREY, BLACK);
+        print("  Usage: uname [option]\n\n");
+        print("  (no args)  print OS name\n");
+        print("  -o         print OS name\n");
+        print("  -v         print kernel version\n");
+        print("  -c         print codename\n");
+        print("  -i         print architecture\n");
+        print("  -b         print build number\n");
+        print("  -a         print all\n");
+        return;
+    }
+
+    for (int k = 0; k < argc; k++) {
+        const char* flag = argv[k];
+        if (kstrcmp(flag, "-o") == 0) {
+            set_color(WHITE, BLACK);
+            print("  LimonOS\n");
+        } else if (kstrcmp(flag, "-v") == 0) {
+            set_color(WHITE, BLACK);
+            print("  " LIMON_VERSION_STRING "\n");
+        } else if (kstrcmp(flag, "-c") == 0) {
+            set_color(WHITE, BLACK);
+            print("  " LIMON_CODENAME "\n");
+        } else if (kstrcmp(flag, "-i") == 0) {
+            set_color(WHITE, BLACK);
+            print("  " LIMON_ARCH "\n");
+        } else if (kstrcmp(flag, "-b") == 0) {
+            set_color(WHITE, BLACK);
+            print("  b"); print_int(LIMON_BUILD); print("\n");
+        } else if (kstrcmp(flag, "-a") == 0) {
+            set_color(WHITE, BLACK);
+            print("  LimonOS " LIMON_VERSION_STRING "-b");
+            print_int(LIMON_BUILD);
+            print(" " LIMON_CODENAME " " LIMON_ARCH "\n");
+        } else {
+            set_color(LIGHT_RED, BLACK);
+            print("  unknown option: ");
+            set_color(WHITE, BLACK);
+            print(flag);
+            print("\n");
+        }
+    }
 }
 
 static void cmd_ver(char* args) {
     set_color(WHITE, BLACK);
-    print("LimonOS " LIMON_CODENAME " v" LIMON_VERSION_STRING "-b"); print_int(LIMON_BUILD);
+    print("  LimonOS " LIMON_CODENAME " v" LIMON_VERSION_STRING "-b");
+    print_int(LIMON_BUILD);
     print("\n");
 }
 
@@ -308,7 +362,6 @@ static void cmd_fetch(char* args) {
     get_cpu_vendor(cpu);
 
     uint32_t mem_mib = (g_mem_upper + 1024) / 1024;
-
     uint32_t h = uptime_seconds / 3600;
     uint32_t m = (uptime_seconds % 3600) / 60;
     uint32_t s = uptime_seconds % 60;
@@ -332,11 +385,9 @@ static void cmd_fetch(char* args) {
     for (int i = 0; i < 9; i++) {
         set_color(YELLOW, BLACK);
         print(i < 6 ? art[i] : "         ");
-
         set_color(LIGHT_CYAN, BLACK);
         print(keys[i]);
         print(": ");
-
         set_color(WHITE, BLACK);
         switch (i) {
             case 0: print(LIMON_VERSION_FULL); break;
@@ -385,15 +436,17 @@ static void cmd_halt(char* args) {
     __asm__ volatile ("cli; hlt");
 }
 
+// --- Command table ---
 static const Command commands[] = {
-    {"help",       "show commands",  2, cmd_help},
-    {"about",      "system info",    2, cmd_about},
-    {"clear",      "clear screen",   1, cmd_clear},
-    {"uname",      "kernel version", 2, cmd_uname},
-    {"ver",        "system version", 1, cmd_ver},
-    {"limonfetch", "system fetch",   2, cmd_fetch},
-    {"reboot",     "reboot system",  1, cmd_reboot},
-    {"halt",       "halt system",    1, cmd_halt},
+    {"help",       "show commands",      2, cmd_help},
+    {"lscmd",      "list all commands",  2, 0},
+    {"about",      "about LimonOS",      2, cmd_about},
+    {"clear",      "clear screen",       1, cmd_clear},
+    {"uname",      "system information", 2, cmd_uname},
+    {"ver",        "system version",     2, cmd_ver},
+    {"limonfetch", "system fetch",       2, cmd_fetch},
+    {"reboot",     "reboot system",      1, cmd_reboot},
+    {"halt",       "halt system",        1, cmd_halt},
 };
 #define CMD_COUNT (sizeof(commands) / sizeof(commands[0]))
 
@@ -435,10 +488,97 @@ static void cmd_help(char* args) {
             print("\n");
         }
     }
-    
-    // Explicitly add echo as it is built into the shell logic
+
     if (cat == 2) {
         print("  echo   - print text\n");
+    }
+}
+
+static void cmd_lscmd(char* args) {
+    const char* names[CMD_COUNT + 1];
+    int total = 0;
+    for (int i = 0; i < (int)CMD_COUNT; i++)
+        names[total++] = commands[i].name;
+    names[total++] = "echo";
+
+    int cols = 2;
+    if (total > 20) cols = 3;
+    if (total > 30) cols = 4;
+
+    int rows = (total + cols - 1) / cols;
+
+    set_color(WHITE, BLACK);
+    print("\n");
+    for (int r = 0; r < rows; r++) {
+        print("  ");
+        for (int col = 0; col < cols; col++) {
+            int idx = col * rows + r;
+            if (idx >= total) break;
+            set_color(LIGHT_CYAN, BLACK);
+            print(names[idx]);
+            int pad = 16 - kstrlen(names[idx]);
+            for (int p = 0; p < pad; p++) vga_putchar(' ');
+        }
+        print("\n");
+    }
+    print("\n");
+    set_color(LIGHT_GREY, BLACK);
+}
+
+// --- Tab completion ---
+static int tab_complete(char* buf, int buf_len) {
+    const char* names[CMD_COUNT + 1];
+    int total = 0;
+    for (int i = 0; i < (int)CMD_COUNT; i++)
+        names[total++] = commands[i].name;
+    names[total++] = "echo";
+
+    if (buf_len == 0) return buf_len;
+
+    const char* matches[CMD_COUNT + 1];
+    int match_count = 0;
+    for (int i = 0; i < total; i++) {
+        int match = 1;
+        for (int j = 0; j < buf_len; j++) {
+            if (names[i][j] == '\0' || names[i][j] != buf[j]) {
+                match = 0;
+                break;
+            }
+        }
+        if (match) matches[match_count++] = names[i];
+    }
+
+    if (match_count == 0) {
+        return buf_len;
+
+    } else if (match_count == 1) {
+        const char* full = matches[0];
+        int full_len = kstrlen(full);
+        for (int i = buf_len; i > 0; i--) {
+            cursor_x--;
+            vga[cursor_y * VGA_WIDTH + cursor_x] = (current_color << 8) | ' ';
+        }
+        for (int i = 0; i < full_len && i < 79; i++)
+            buf[i] = full[i];
+        set_color(WHITE, BLACK);
+        for (int i = 0; i < full_len; i++)
+            vga_putchar(buf[i]);
+        return full_len;
+
+    } else {
+        print("\n");
+        for (int i = 0; i < match_count; i++) {
+            set_color(LIGHT_CYAN, BLACK);
+            print("  ");
+            print(matches[i]);
+            print("\n");
+        }
+        set_color(YELLOW, BLACK);
+        print("limon> ");
+        set_color(WHITE, BLACK);
+        for (int i = 0; i < buf_len; i++)
+            vga_putchar(buf[i]);
+        return buf_len;
     }
 }
 
@@ -485,7 +625,7 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     print("limon> ");
     set_color(WHITE, BLACK);
 
-#define PROMPT_LEN 7  // strlen("limon> ")
+#define PROMPT_LEN 7
 
     char buf[80];
     int buf_len = 0;
@@ -507,9 +647,7 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
                 if (history_nav == -1) continue;
                 history_nav++;
                 if (history_nav >= history_count) {
-                    // past newest: clear input
                     history_nav = -1;
-                    // erase current line
                     for (int i = buf_len; i > 0; i--) {
                         cursor_x--;
                         vga[cursor_y * VGA_WIDTH + cursor_x] = (current_color << 8) | ' ';
@@ -519,46 +657,48 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
                 }
             }
 
-            // erase current input on screen
             for (int i = buf_len; i > 0; i--) {
                 cursor_x--;
                 vga[cursor_y * VGA_WIDTH + cursor_x] = (current_color << 8) | ' ';
             }
 
-            // load history entry
             const char* entry = history[history_nav % HISTORY_SIZE];
             kstrcpy(buf, entry);
             buf_len = kstrlen(buf);
-
-            // print it
             set_color(WHITE, BLACK);
             print(buf);
+            continue;
+        }
+
+        // --- Tab completion ---
+        if (c == '\t') {
+            buf_len = tab_complete(buf, buf_len);
             continue;
         }
 
         // --- Enter ---
         if (c == '\n') {
             buf[buf_len] = '\0';
-            cursor_x = 0;
-            cursor_y++;
+            vga_putchar('\n');
 
             history_push(buf);
             history_nav = -1;
 
-            // Extract command name and args
             char* cmd_name = buf;
             char* cmd_args = "";
             for (int i = 0; i < buf_len; i++) {
                 if (buf[i] == ' ') {
                     buf[i] = '\0';
                     cmd_args = &buf[i + 1];
-                    while (*cmd_args == ' ') cmd_args++; // skip extra spaces
+                    while (*cmd_args == ' ') cmd_args++;
                     break;
                 }
             }
 
             if (kstrcmp(cmd_name, "echo") == 0) {
                 cmd_echo(cmd_args);
+            } else if (kstrcmp(cmd_name, "lscmd") == 0) {
+                cmd_lscmd(cmd_args);
             } else {
                 int found = 0;
                 for (int i = 0; i < (int)CMD_COUNT; i++) {

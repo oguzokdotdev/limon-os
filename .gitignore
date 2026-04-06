@@ -60,3 +60,4 @@ iso/
 *.iso
 kernel/version.h
 last.iso
+.idea/
