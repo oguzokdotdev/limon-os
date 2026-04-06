@@ -5,7 +5,7 @@
 Хобби-операционная система написанная с нуля для x86.  
 Вдохновлена [VibeOS](https://github.com/kaansenol5/VibeOS). Разработано с Claude Sonnet 4.6.
 
-**Актуальная версия: Sicily 0.1.2**
+**Актуальная версия: Sicily 0.1.3**
 
 **Прототип интерфейса LimonOS Menton: <a href="https://limon.oguzok.tech/" target="_blank">click 🚀</a>**
 
@@ -13,8 +13,8 @@
 
 ## Скриншоты
 
-![Bootscreen](screenshots/v0.1.2/bootscreen.png)
-![Shell](screenshots/v0.1.2/shell.png)
+![Bootscreen](screenshots/v0.1.3/bootscreen.png)
+![Shell](screenshots/v0.1.3/shell.png)
 
 ---
 
@@ -91,13 +91,14 @@ make run    # запустить в QEMU
 </details>
 
 <details>
-<summary>⏱️ v0.1.3 — Shell UX</summary>
+<summary>✅ v0.1.3 — Shell UX</summary>
 
-- `help [n]` по страницам/категориям ✅
-- История команд (стрелки ↑↓) ✅
-- Парсинг аргументов ✅
+- `help [n]` по страницам/категориям 
+- История команд (стрелки ↑↓) 
+- Парсинг аргументов
 - `lscmd`, `ver`
-- Shift, верхний регистр, полные спецсимволы ✅
+- Shift, верхний регистр, полные спецсимволы 
+- Tab-автодополнение
 
 </details>
 
