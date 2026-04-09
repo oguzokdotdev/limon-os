@@ -691,6 +691,8 @@ void panic(const char* msg, Registers* regs) {
     DIV(15);
     set_color(LIGHT_GREY, RED);
     center_print("System halted. Restart your machine.", 17);
+    set_color(YELLOW, RED);
+    center_print("\"I'm gonna wreck it!\" (c) Ralph", 18);
 
     while (1) __asm__ volatile ("hlt");
 }
