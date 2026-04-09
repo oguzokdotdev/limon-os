@@ -25,6 +25,6 @@ typedef struct {
 } __attribute__((packed)) Registers;
 
 void idt_init(void);
-void panic(const char* msg);
+void panic(const char* msg, Registers* regs);
 
 #endif
