@@ -358,8 +358,8 @@ static void cmd_echo(char* args) {
 }
 
 static void cmd_fetch(char* args) {
-    char cpu[13];
-    get_cpu_vendor(cpu);
+    char cpu[49];
+    get_cpu_model(cpu);
 
     uint32_t mem_mib = (g_mem_upper + 1024) / 1024;
     uint32_t h = uptime_seconds / 3600;
@@ -692,7 +692,7 @@ void panic(const char* msg, Registers* regs) {
     set_color(LIGHT_GREY, RED);
     center_print("System halted. Restart your machine.", 17);
     set_color(YELLOW, RED);
-    center_print("\"I'm gonna wreck it!\" (c) Ralph", 18);
+    center_print("I'm gonna wreck it! (c) Ralph", 18);
 
     while (1) __asm__ volatile ("hlt");
 }
