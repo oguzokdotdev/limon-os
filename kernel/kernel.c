@@ -436,6 +436,11 @@ static void cmd_halt(char* args) {
     __asm__ volatile ("cli; hlt");
 }
 
+static void cmd_div0(char* args) {
+    volatile int x = 1 / 0;
+    (void)x;
+}
+
 // --- Command table ---
 static const Command commands[] = {
     {"help",       "show commands",      2, cmd_help},
@@ -447,6 +452,7 @@ static const Command commands[] = {
     {"limonfetch", "system fetch",       2, cmd_fetch},
     {"reboot",     "reboot system",      1, cmd_reboot},
     {"halt",       "halt system",        1, cmd_halt},
+    {"div0", "trigger #DE (test panic)", 1, cmd_div0},
 };
 #define CMD_COUNT (sizeof(commands) / sizeof(commands[0]))
 
