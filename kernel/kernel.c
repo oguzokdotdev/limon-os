@@ -588,27 +588,113 @@ static int tab_complete(char* buf, int buf_len) {
     }
 }
 
+static void print_hex(uint32_t n) {
+    const char* h = "0123456789ABCDEF";
+    print("0x");
+    for (int i = 7; i >= 0; i--)
+        vga_putchar(h[(n >> (i * 4)) & 0xF]);
+}
+
+static void get_cpu_model(char* out) {
+    uint32_t max_ext;
+    __asm__ volatile ("cpuid" : "=a"(max_ext) : "a"(0x80000000) : "ebx", "ecx", "edx");
+    if (max_ext < 0x80000004) { get_cpu_vendor(out); return; }
+    uint32_t* p = (uint32_t*)out;
+    for (uint32_t leaf = 0x80000002; leaf <= 0x80000004; leaf++) {
+        uint32_t a, b, c, d;
+        __asm__ volatile ("cpuid" : "=a"(a),"=b"(b),"=c"(c),"=d"(d) : "a"(leaf));
+        *p++ = a; *p++ = b; *p++ = c; *p++ = d;
+    }
+    out[48] = '\0';
+}
+
+static uint32_t read_cr2(void) {
+    uint32_t v;
+    __asm__ volatile ("mov %%cr2, %0" : "=r"(v));
+    return v;
+}
+
 // --- Panic ---
-void panic(const char* msg) {
+void panic(const char* msg, Registers* regs) {
     __asm__ volatile ("cli");
 
-    // Красный экран
     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
         vga[i] = (uint16_t)' ' | (((RED << 4) | WHITE) << 8);
 
+#define P_ROW(r) do { cursor_x = 0; cursor_y = (r); } while(0)
+#define DIV(r) do { \
+    set_color(YELLOW, RED); P_ROW(r); \
+    for (int _i = 0; _i < VGA_WIDTH; _i++) vga_putchar('='); \
+} while(0)
+
+    DIV(4);
     set_color(WHITE, RED);
+    center_print("!!!  KERNEL PANIC  !!!", 5);
+    DIV(6);
 
-    cursor_x = 0; cursor_y = 8;
-    center_print("!!! KERNEL PANIC !!!", 8);
+    set_color(LIGHT_GREY, RED); P_ROW(7); print(" Exception : ");
+    set_color(WHITE, RED); print(msg);
 
-    cursor_x = 0; cursor_y = 11;
-    center_print(msg, 11);
+    set_color(LIGHT_GREY, RED); P_ROW(8); print(" System    : ");
+    set_color(WHITE, RED);
+    print("LimonOS " LIMON_CODENAME " v" LIMON_VERSION_STRING "-b");
+    print_int(LIMON_BUILD);
+    uint32_t uh = uptime_seconds / 3600;
+    uint32_t um = (uptime_seconds % 3600) / 60;
+    uint32_t us = uptime_seconds % 60;
+    set_color(LIGHT_GREY, RED); print("   Uptime: ");
+    set_color(WHITE, RED);
+    print_padded2(uh); print(":"); print_padded2(um); print(":"); print_padded2(us);
 
+    char cpu[49];
+    get_cpu_model(cpu);
+    set_color(LIGHT_GREY, RED); P_ROW(9); print(" CPU       : ");
+    set_color(WHITE, RED); print(cpu);
+
+    DIV(10);
+
+    set_color(LIGHT_GREY, RED); P_ROW(11); print(" EIP: ");
+    set_color(WHITE, RED);
+    if (regs) print_hex(regs->eip); else print("0x????????");
+
+    set_color(LIGHT_GREY, RED); print("    Error: ");
+    set_color(WHITE, RED);
+    if (regs) print_hex(regs->err_code); else print("0x????????");
+
+    if (regs && regs->int_no == 14) {
+        set_color(LIGHT_GREY, RED); print("    CR2: ");
+        set_color(WHITE, RED); print_hex(read_cr2());
+    }
+
+    DIV(12);
+
+    if (regs) {
+        set_color(LIGHT_GREY, RED); P_ROW(13); print(" EAX: ");
+        set_color(WHITE, RED); print_hex(regs->eax);
+        set_color(LIGHT_GREY, RED); print("  EBX: ");
+        set_color(WHITE, RED); print_hex(regs->ebx);
+        set_color(LIGHT_GREY, RED); print("  ECX: ");
+        set_color(WHITE, RED); print_hex(regs->ecx);
+        set_color(LIGHT_GREY, RED); print("  EDX: ");
+        set_color(WHITE, RED); print_hex(regs->edx);
+
+        set_color(LIGHT_GREY, RED); P_ROW(14); print(" ESI: ");
+        set_color(WHITE, RED); print_hex(regs->esi);
+        set_color(LIGHT_GREY, RED); print("  EDI: ");
+        set_color(WHITE, RED); print_hex(regs->edi);
+        set_color(LIGHT_GREY, RED); print("  ESP: ");
+        set_color(WHITE, RED); print_hex(regs->esp);
+        set_color(LIGHT_GREY, RED); print("  EBP: ");
+        set_color(WHITE, RED); print_hex(regs->ebp);
+    }
+
+    DIV(15);
     set_color(LIGHT_GREY, RED);
-    center_print("System halted. Restart your machine.", 14);
+    center_print("System halted. Restart your machine.", 17);
 
     while (1) __asm__ volatile ("hlt");
 }
+
 
 // --- Kernel ---
 void kernel_main(uint32_t magic, MultibootInfo* mbi) {

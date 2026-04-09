@@ -67,7 +67,7 @@ void exception_handler(Registers* regs) {
     const char* name = (regs->int_no < 32)
         ? exception_names[regs->int_no]
         : "Unknown Exception";
-    panic(name);
+    panic(name, regs);
 }
 
 void idt_init(void) {
