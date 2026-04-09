@@ -3,7 +3,7 @@ AS      = nasm
 CFLAGS  = -m32 -ffreestanding -fno-stack-protector -nostdlib -fno-pic -O2 -Ikernel
 LDFLAGS = -m elf_i386 -T linker.ld
 
-VERSION          = 0.1.3
+VERSION          = 0.1.4
 CODENAME         = sicily
 CODENAME_DISPLAY = Sicily
 

@@ -582,6 +582,28 @@ static int tab_complete(char* buf, int buf_len) {
     }
 }
 
+// --- Panic ---
+void panic(const char* msg) {
+    __asm__ volatile ("cli");
+
+    // Красный экран
+    for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
+        vga[i] = (uint16_t)' ' | (((RED << 4) | WHITE) << 8);
+
+    set_color(WHITE, RED);
+
+    cursor_x = 0; cursor_y = 8;
+    center_print("!!! KERNEL PANIC !!!", 8);
+
+    cursor_x = 0; cursor_y = 11;
+    center_print(msg, 11);
+
+    set_color(LIGHT_GREY, RED);
+    center_print("System halted. Restart your machine.", 14);
+
+    while (1) __asm__ volatile ("hlt");
+}
+
 // --- Kernel ---
 void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     gdt_init();
