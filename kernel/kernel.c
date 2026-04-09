@@ -165,6 +165,7 @@ static void get_cpu_vendor(char* out) {
     for (int i = 0; i < 4; i++) out[8 + i] = (ecx >> (i * 8)) & 0xFF;
     out[12] = '\0';
 }
+static void get_cpu_model(char* out);
 
 // --- Keyboard ---
 #define KEY_UP   0x01
