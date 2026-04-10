@@ -1,204 +1,44 @@
-# 🍋 LimonOS Sicily
+# 🍋 LimonOS
 
-> чисто, минималистично, своё.
+> clean, minimal, yours.
 
-Хобби-операционная система написанная с нуля для x86.  
-Вдохновлена [VibeOS](https://github.com/kaansenol5/VibeOS). Разработано с Claude Sonnet 4.6.
+![Version](https://img.shields.io/badge/version-Sicily%200.1.4-yellow?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
+![Arch](https://img.shields.io/badge/arch-i386-blue?style=flat-square)
+![Build](https://img.shields.io/github/actions/workflow/status/oguzokdotdev/limon-os/build.yml?style=flat-square)
 
-**Актуальная версия: Sicily 0.1.3**
-
-**Прототип интерфейса LimonOS Menton: <a href="https://limon.oguzok.tech/" target="_blank">click 🚀</a>**
-
----
-
-## Скриншоты
-
-![Bootscreen](screenshots/v0.1.3/bootscreen.png)
-![Shell](screenshots/v0.1.3/shell.png)
+A hobby x86 operating system built from scratch in C and NASM.  
+Inspired by [VibeOS](https://github.com/kaansenol5/VibeOS). Developed with Claude Sonnet 4.6.
 
 ---
 
-## Что внутри
+## 📖 Documentation
 
-- Загрузчик через GRUB (Multiboot)
-- VGA драйвер с 16 цветами и скроллингом
-- Драйвер клавиатуры PS/2 через аппаратные прерывания (IDT)
-- GDT — сегментация памяти
-- PIT-таймер (100 Гц) — uptime в `limonfetch`
-- Интерактивный шелл с командами: `help`, `lscmd`, `about`, `uname`, `ver`, `clear`, `echo`, `limonfetch`, `reboot`, `halt`
-- `help [категория]` — справка по категориям команд (System Control / Info & Utilities)
-- `lscmd` — список всех команд в колоночном формате
-- `uname` — системная информация с флагами (`-o`, `-v`, `-c`, `-i`, `-b`, `-a`)
-- `limonfetch` — системная информация с ASCII-логотипом, CPU vendor, памятью, uptime и цветовой палитрой
-- `reboot` / `halt` — управление питанием через keyboard controller и `cli; hlt`
-- История команд (16 записей) с навигацией стрелками ↑↓
-- Tab-автодополнение команд (одно совпадение — вставка, несколько — список)
-- CPUID для определения производителя CPU
-- Чтение памяти из Multiboot-структуры (`mem_upper`)
+| 🇷🇺 Русский | 🇬🇧 English | 🗺️ Roadmap |
+|:-----------:|:-----------:|:-----------:|
+| [docs/README_RU.md](docs/README_RU.md) | [docs/README_EN.md](docs/README_EN.md) | [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 ---
 
-## Быстрый старт
+## Screenshots
 
-### 1. Зависимости
+![Bootscreen](docs/screenshots/v0.1.3/bootscreen.png)
+![Shell](docs/screenshots/v0.1.3/shell.png)
+
+---
+
+## Quick Start
+
 ```bash
-sudo apt install build-essential gcc nasm qemu-system-x86 grub-pc-bin xorriso
-```
+sudo apt install build-essential gcc nasm qemu-system-i386 grub-pc-bin xorriso
 
-### 2. Клонировать и запустить
-```bash
 git clone https://github.com/oguzokdotdev/limon-os.git
 cd limon-os
-make        # собрать
-make run    # запустить в QEMU
+make && make run
 ```
 
 ---
 
-## Roadmap
+**UI prototype (Menton):** [limon.oguzok.tech](https://limon.oguzok.tech/) 🚀
 
-<details>
-<summary><b>🍋 LimonOS Sicily</b> — v0.x.x</summary>
-
-<br>
-
-<details>
-<summary>✅ v0.1.0 — Core</summary>
-
-- VGA text driver
-- PS/2 keyboard via IDT
-- GDT, IDT
-- Interactive shell (`help`, `echo`, `clear`, `about`, `uname`)
-
-</details>
-
-<details>
-<summary>✅ v0.1.1 — Versioning & CI/CD</summary>
-
-- Version system with `build.no` and auto-generated `version.h`
-- `limonfetch` command
-- GitHub Actions CI/CD pipeline
-
-</details>
-
-<details>
-<summary>✅ v0.1.2 — System Control</summary>
-
-- `reboot`, `halt` commands
-- PIT timer at 100 Hz
-- `uptime` in `limonfetch`
-
-</details>
-
-<details>
-<summary>✅ v0.1.3 — Shell UX</summary>
-
-- `help [n]` по страницам/категориям 
-- История команд (стрелки ↑↓) 
-- Парсинг аргументов
-- `lscmd`, `ver`
-- Shift, верхний регистр, полные спецсимволы 
-- Tab-автодополнение
-
-</details>
-
-<details>
-<summary>🔲 v0.1.4 — CPU Exceptions</summary>
-
-- Обработчики #DE, #GP, #PF, #DF
-- `panic()` — экран с ошибкой и halt
-
-</details>
-
-<details>
-<summary>🔲 v0.1.5 — libc Foundation</summary>
-
-- `string.c` — strlen, strcmp, strcpy, strcat
-- `memory.c` — memset, memcpy, memmove
-- `convert.c` — itoa, atoi
-
-</details>
-
-<details>
-<summary>🔲 v0.1.6 — VGA Extended</summary>
-
-- Цвета текста и фона (`color fg bg`)
-- Скроллинг экрана
-- Аппаратный VGA курсор
-
-</details>
-
-<details>
-<summary>🔲 v0.1.7 — Verbose Boot</summary>
-
-- `[  OK  ]` / `[ WARN ]` / `[ FAIL ]` с цветами
-- Логирование каждого этапа инициализации
-
-</details>
-
-<details>
-<summary>🔲 v0.1.8 — Timers & RTC</summary>
-
-- Чтение реального времени из RTC
-- Команда `date`
-- Дата в `limonfetch`
-
-</details>
-
-<details>
-<summary>🔲 v0.1.9 — Refactoring</summary>
-
-- Единый `kernel.h`
-- Структура папок под v0.2.0
-- Ревизия CI/CD
-
-</details>
-
-<details>
-<summary>🔲 v0.2.0 — Memory</summary>
-
-- Paging
-- kmalloc
-
-</details>
-
-<details>
-<summary>🔲 v0.3.0 — Processes</summary>
-
-- Процессы
-- Планировщик
-
-</details>
-
-<details>
-<summary>🔲 v0.4.0 — FAT32</summary>
-
-- Файловая система FAT32
-
-</details>
-
-<details>
-<summary>🔲 v0.5.0 — Userspace & Syscalls</summary>
-
-- Userspace
-- Syscalls
-
-</details>
-
-</details>
-
-<details>
-<summary><b>🍋 LimonOS Menton</b> — v1.x.x</summary>
-
-<details>
-<summary>🔲 v1.0.0 — GUI</summary>
-
-- Графический интерфейс
-
-</details>
-
-</details>
-
----
-
-*Limon OS — чисто, минималистично, своё.* 🍋
+*Limon OS — clean, minimal, yours.* 🍋
