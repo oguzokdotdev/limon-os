@@ -2,6 +2,9 @@
 #include "gdt.h"
 #include "idt.h"
 #include "version.h"
+#include "libc/string.h"
+#include "libc/memory.h"
+#include "libc/convert.h"
 
 // --- Multiboot ---
 #define MULTIBOOT_MAGIC 0x2BADB002
@@ -100,21 +103,6 @@ static void print_padded2(uint32_t n) {
 }
 
 // --- Utilities ---
-static int kstrcmp(const char* a, const char* b) {
-    while (*a && *b && *a == *b) { a++; b++; }
-    return *a - *b;
-}
-
-static void kstrcpy(char* dst, const char* src) {
-    while ((*dst++ = *src++));
-}
-
-static int kstrlen(const char* s) {
-    int n = 0;
-    while (s[n]) n++;
-    return n;
-}
-
 static inline uint8_t inb(uint16_t port) {
     uint8_t val;
     __asm__ volatile ("inb %1, %0" : "=a"(val) : "Nd"(port));
@@ -123,15 +111,6 @@ static inline uint8_t inb(uint16_t port) {
 
 static inline void outb(uint16_t port, uint8_t val) {
     __asm__ volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
-}
-
-static int katoi(const char* str) {
-    int res = 0;
-    while (*str >= '0' && *str <= '9') {
-        res = res * 10 + (*str - '0');
-        str++;
-    }
-    return res;
 }
 
 static int parse_args(char* str, char* argv[], int max_args) {
@@ -247,8 +226,8 @@ static int  history_nav   = -1;
 static void history_push(const char* cmd) {
     if (cmd[0] == '\0') return;
     if (history_count > 0 &&
-        kstrcmp(history[(history_count - 1) % HISTORY_SIZE], cmd) == 0) return;
-    kstrcpy(history[history_count % HISTORY_SIZE], cmd);
+        strcmp(history[(history_count - 1) % HISTORY_SIZE], cmd) == 0) return;
+    strcpy(history[history_count % HISTORY_SIZE], cmd);
     history_count++;
 }
 
@@ -290,7 +269,7 @@ static void cmd_uname(char* args) {
         return;
     }
 
-    if (kstrcmp(argv[0], "--help") == 0 || kstrcmp(argv[0], "-help") == 0) {
+    if (strcmp(argv[0], "--help") == 0 || strcmp(argv[0], "-help") == 0) {
         set_color(LIGHT_CYAN, BLACK);
         print("  uname - print system information\n");
         set_color(LIGHT_GREY, BLACK);
@@ -307,22 +286,22 @@ static void cmd_uname(char* args) {
 
     for (int k = 0; k < argc; k++) {
         const char* flag = argv[k];
-        if (kstrcmp(flag, "-o") == 0) {
+        if (strcmp(flag, "-o") == 0) {
             set_color(WHITE, BLACK);
             print("  LimonOS\n");
-        } else if (kstrcmp(flag, "-v") == 0) {
+        } else if (strcmp(flag, "-v") == 0) {
             set_color(WHITE, BLACK);
             print("  " LIMON_VERSION_STRING "\n");
-        } else if (kstrcmp(flag, "-c") == 0) {
+        } else if (strcmp(flag, "-c") == 0) {
             set_color(WHITE, BLACK);
             print("  " LIMON_CODENAME "\n");
-        } else if (kstrcmp(flag, "-i") == 0) {
+        } else if (strcmp(flag, "-i") == 0) {
             set_color(WHITE, BLACK);
             print("  " LIMON_ARCH "\n");
-        } else if (kstrcmp(flag, "-b") == 0) {
+        } else if (strcmp(flag, "-b") == 0) {
             set_color(WHITE, BLACK);
             print("  b"); print_int(LIMON_BUILD); print("\n");
-        } else if (kstrcmp(flag, "-a") == 0) {
+        } else if (strcmp(flag, "-a") == 0) {
             set_color(WHITE, BLACK);
             print("  LimonOS " LIMON_VERSION_STRING "-b");
             print_int(LIMON_BUILD);
@@ -471,7 +450,7 @@ static void cmd_help(char* args) {
         return;
     }
 
-    int cat = katoi(argv[0]);
+    int cat = atoi(argv[0]);
 
     set_color(LIGHT_CYAN, BLACK);
     if (cat == 1) {
@@ -523,7 +502,7 @@ static void cmd_lscmd(char* args) {
             if (idx >= total) break;
             set_color(LIGHT_CYAN, BLACK);
             print(names[idx]);
-            int pad = 16 - kstrlen(names[idx]);
+            int pad = 16 - strlen(names[idx]);
             for (int p = 0; p < pad; p++) vga_putchar(' ');
         }
         print("\n");
@@ -560,7 +539,7 @@ static int tab_complete(char* buf, int buf_len) {
 
     } else if (match_count == 1) {
         const char* full = matches[0];
-        int full_len = kstrlen(full);
+        int full_len = strlen(full);
         for (int i = buf_len; i > 0; i--) {
             cursor_x--;
             vga[cursor_y * VGA_WIDTH + cursor_x] = (current_color << 8) | ' ';
@@ -780,8 +759,8 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
             }
 
             const char* entry = history[history_nav % HISTORY_SIZE];
-            kstrcpy(buf, entry);
-            buf_len = kstrlen(buf);
+            strcpy(buf, entry);
+            buf_len = strlen(buf);
             set_color(WHITE, BLACK);
             print(buf);
             continue;
@@ -812,20 +791,20 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
                 }
             }
 
-            if (kstrcmp(cmd_name, "echo") == 0) {
+            if (strcmp(cmd_name, "echo") == 0) {
                 cmd_echo(cmd_args);
-            } else if (kstrcmp(cmd_name, "lscmd") == 0) {
+            } else if (strcmp(cmd_name, "lscmd") == 0) {
                 cmd_lscmd(cmd_args);
             } else {
                 int found = 0;
                 for (int i = 0; i < (int)CMD_COUNT; i++) {
-                    if (kstrcmp(cmd_name, commands[i].name) == 0) {
+                    if (strcmp(cmd_name, commands[i].name) == 0) {
                         commands[i].func(cmd_args);
                         found = 1;
                         break;
                     }
                 }
-                if (!found && kstrlen(cmd_name) > 0) {
+                if (!found && strlen(cmd_name) > 0) {
                     set_color(LIGHT_RED, BLACK);
                     print("  unknown command: ");
                     set_color(WHITE, BLACK);
