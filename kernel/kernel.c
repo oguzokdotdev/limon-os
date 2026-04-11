@@ -131,6 +131,22 @@ static int parse_args(char* str, char* argv[], int max_args) {
     return argc;
 }
 
+// --- Hardware cursor ---
+static void hw_cursor_enable(void) {
+    outb(0x3D4, 0x0A);
+    outb(0x3D5, (inb(0x3D5) & 0xC0) | 13);
+    outb(0x3D4, 0x0B);
+    outb(0x3D5, (inb(0x3D5) & 0xE0) | 15);
+}
+
+static void hw_cursor_update(void) {
+    uint16_t pos = cursor_y * VGA_WIDTH + cursor_x;
+    outb(0x3D4, 0x0F);
+    outb(0x3D5, (uint8_t)(pos & 0xFF));
+    outb(0x3D4, 0x0E);
+    outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
+}
+
 // --- CPUID ---
 static void get_cpu_vendor(char* out) {
     uint32_t ebx, ecx, edx;
@@ -147,8 +163,10 @@ static void get_cpu_vendor(char* out) {
 static void get_cpu_model(char* out);
 
 // --- Keyboard ---
-#define KEY_UP   0x01
-#define KEY_DOWN 0x02
+#define KEY_UP    0x01
+#define KEY_DOWN  0x02
+#define KEY_LEFT  0x03
+#define KEY_RIGHT 0x04
 
 static volatile char key_buf[256];
 static volatile int  key_head = 0;
@@ -179,8 +197,10 @@ void keyboard_handler(void) {
 
     if (e0_prefix) {
         e0_prefix = 0;
-        if (scan == 0x48) { key_buf[key_head] = KEY_UP;   key_head = (key_head + 1) % 256; }
-        if (scan == 0x50) { key_buf[key_head] = KEY_DOWN; key_head = (key_head + 1) % 256; }
+        if (scan == 0x48) { key_buf[key_head] = KEY_UP;    key_head = (key_head + 1) % 256; }
+        if (scan == 0x50) { key_buf[key_head] = KEY_DOWN;  key_head = (key_head + 1) % 256; }
+        if (scan == 0x4B) { key_buf[key_head] = KEY_LEFT;  key_head = (key_head + 1) % 256; }
+        if (scan == 0x4D) { key_buf[key_head] = KEY_RIGHT; key_head = (key_head + 1) % 256; }
         outb(0x20, 0x20);
         return;
     }
@@ -540,15 +560,8 @@ static int tab_complete(char* buf, int buf_len) {
     } else if (match_count == 1) {
         const char* full = matches[0];
         int full_len = strlen(full);
-        for (int i = buf_len; i > 0; i--) {
-            cursor_x--;
-            vga[cursor_y * VGA_WIDTH + cursor_x] = (current_color << 8) | ' ';
-        }
         for (int i = 0; i < full_len && i < 79; i++)
             buf[i] = full[i];
-        set_color(WHITE, BLACK);
-        for (int i = 0; i < full_len; i++)
-            vga_putchar(buf[i]);
         return full_len;
 
     } else {
@@ -559,11 +572,6 @@ static int tab_complete(char* buf, int buf_len) {
             print(matches[i]);
             print("\n");
         }
-        set_color(YELLOW, BLACK);
-        print("limon> ");
-        set_color(WHITE, BLACK);
-        for (int i = 0; i < buf_len; i++)
-            vga_putchar(buf[i]);
         return buf_len;
     }
 }
@@ -677,11 +685,29 @@ void panic(const char* msg, Registers* regs) {
     while (1) __asm__ volatile ("hlt");
 }
 
+// --- Input line redraw ---
+// Перерисовывает строку ввода начиная с позиции from_pos до buf_len,
+// затем стирает лишний символ справа (при удалении) и ставит курсор на buf_pos.
+static void redraw_line(char* buf, int buf_len, int buf_pos,
+                        int from_pos, int prompt_x, int prompt_y) {
+    cursor_x = prompt_x + from_pos;
+    cursor_y = prompt_y;
+    set_color(WHITE, BLACK);
+    for (int i = from_pos; i < buf_len; i++)
+        vga_putchar(buf[i]);
+    // Стереть символ после конца буфера (нужно при backspace/delete)
+    vga[prompt_y * VGA_WIDTH + (prompt_x + buf_len)] = (current_color << 8) | ' ';
+    // Поставить курсор на текущую позицию ввода
+    cursor_x = prompt_x + buf_pos;
+    cursor_y = prompt_y;
+    hw_cursor_update();
+}
 
 // --- Kernel ---
 void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     gdt_init();
     idt_init();
+    hw_cursor_enable();
 
     uint32_t divisor = 1193180 / 100;
     outb(0x43, 0x36);
@@ -721,16 +747,40 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     print("limon> ");
     set_color(WHITE, BLACK);
 
-#define PROMPT_LEN 7
+    // Запомнить начало зоны ввода
+    int prompt_x = cursor_x;
+    int prompt_y = cursor_y;
+    hw_cursor_update();
 
     char buf[80];
     int buf_len = 0;
+    int buf_pos = 0; // позиция курсора внутри буфера
 
     while (1) {
         char c = read_key();
         if (c == 0) continue;
 
-        // --- History navigation ---
+        // --- Стрелки влево/вправо ---
+        if (c == KEY_LEFT) {
+            if (buf_pos > 0) {
+                buf_pos--;
+                cursor_x = prompt_x + buf_pos;
+                cursor_y = prompt_y;
+                hw_cursor_update();
+            }
+            continue;
+        }
+        if (c == KEY_RIGHT) {
+            if (buf_pos < buf_len) {
+                buf_pos++;
+                cursor_x = prompt_x + buf_pos;
+                cursor_y = prompt_y;
+                hw_cursor_update();
+            }
+            continue;
+        }
+
+        // --- История (вверх/вниз) ---
         if (c == KEY_UP || c == KEY_DOWN) {
             if (history_count == 0) continue;
 
@@ -744,37 +794,77 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
                 history_nav++;
                 if (history_nav >= history_count) {
                     history_nav = -1;
-                    for (int i = buf_len; i > 0; i--) {
-                        cursor_x--;
-                        vga[cursor_y * VGA_WIDTH + cursor_x] = (current_color << 8) | ' ';
-                    }
+                    // Очистить строку
+                    cursor_x = prompt_x;
+                    cursor_y = prompt_y;
+                    for (int i = 0; i < buf_len; i++)
+                        vga_putchar(' ');
                     buf_len = 0;
+                    buf_pos = 0;
+                    cursor_x = prompt_x;
+                    cursor_y = prompt_y;
+                    hw_cursor_update();
                     continue;
                 }
             }
 
-            for (int i = buf_len; i > 0; i--) {
-                cursor_x--;
-                vga[cursor_y * VGA_WIDTH + cursor_x] = (current_color << 8) | ' ';
-            }
+            // Очистить текущую строку
+            cursor_x = prompt_x;
+            cursor_y = prompt_y;
+            for (int i = 0; i < buf_len; i++)
+                vga_putchar(' ');
 
             const char* entry = history[history_nav % HISTORY_SIZE];
             strcpy(buf, entry);
             buf_len = strlen(buf);
+            buf_pos = buf_len;
+
+            cursor_x = prompt_x;
+            cursor_y = prompt_y;
             set_color(WHITE, BLACK);
             print(buf);
+            hw_cursor_update();
             continue;
         }
 
         // --- Tab completion ---
         if (c == '\t') {
-            buf_len = tab_complete(buf, buf_len);
+            int new_len = tab_complete(buf, buf_pos);
+            if (new_len != buf_pos) {
+                buf_len = new_len;
+                buf_pos = new_len;
+                // Перерисовать всю строку
+                cursor_x = prompt_x;
+                cursor_y = prompt_y;
+                set_color(WHITE, BLACK);
+                for (int i = 0; i < buf_len; i++)
+                    vga_putchar(buf[i]);
+                hw_cursor_update();
+            } else if (new_len == buf_pos && buf_len > buf_pos) {
+                // Совпадений нет, ничего не делать
+            } else {
+                // Несколько совпадений — tab_complete уже напечатал список,
+                // нужно переprint'нуть промпт и буфер
+                set_color(YELLOW, BLACK);
+                print("limon> ");
+                set_color(WHITE, BLACK);
+                prompt_x = cursor_x;
+                prompt_y = cursor_y;
+                for (int i = 0; i < buf_len; i++)
+                    vga_putchar(buf[i]);
+                cursor_x = prompt_x + buf_pos;
+                cursor_y = prompt_y;
+                hw_cursor_update();
+            }
             continue;
         }
 
         // --- Enter ---
         if (c == '\n') {
             buf[buf_len] = '\0';
+            // Переместить курсор в конец строки перед переводом
+            cursor_x = prompt_x + buf_len;
+            cursor_y = prompt_y;
             vga_putchar('\n');
 
             history_push(buf);
@@ -814,23 +904,35 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
             }
 
             buf_len = 0;
+            buf_pos = 0;
             set_color(YELLOW, BLACK);
             print("limon> ");
             set_color(WHITE, BLACK);
+            prompt_x = cursor_x;
+            prompt_y = cursor_y;
+            hw_cursor_update();
 
         // --- Backspace ---
         } else if (c == '\b') {
-            if (buf_len > 0) {
+            if (buf_pos > 0) {
+                // Сдвинуть буфер влево от buf_pos
+                for (int i = buf_pos - 1; i < buf_len - 1; i++)
+                    buf[i] = buf[i + 1];
                 buf_len--;
-                cursor_x--;
-                vga[cursor_y * VGA_WIDTH + cursor_x] = (current_color << 8) | ' ';
+                buf_pos--;
+                redraw_line(buf, buf_len, buf_pos, buf_pos, prompt_x, prompt_y);
             }
 
-        // --- Regular char ---
+        // --- Обычный символ ---
         } else {
             if (buf_len < 79) {
-                buf[buf_len++] = c;
-                vga_putchar(c);
+                // Сдвинуть буфер вправо от buf_pos
+                for (int i = buf_len; i > buf_pos; i--)
+                    buf[i] = buf[i - 1];
+                buf[buf_pos] = c;
+                buf_len++;
+                buf_pos++;
+                redraw_line(buf, buf_len, buf_pos, buf_pos - 1, prompt_x, prompt_y);
             }
         }
     }
