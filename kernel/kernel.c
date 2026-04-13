@@ -140,8 +140,11 @@ static void hw_cursor_enable(void) {
 }
 
 static void hw_cursor_hide(void) {
-    outb(0x3D4, 0x0A);
-    outb(0x3D5, 0x20); // bit 5 = cursor disabled
+    uint16_t off = VGA_HEIGHT * VGA_WIDTH; // position 2000 - off-screen
+    outb(0x3D4, 0x0F);
+    outb(0x3D5, (uint8_t)(off & 0xFF));
+    outb(0x3D4, 0x0E);
+    outb(0x3D5, (uint8_t)((off >> 8) & 0xFF));
 }
 
 static void hw_cursor_update(void) {
@@ -610,7 +613,7 @@ static uint32_t read_cr2(void) {
 // --- Panic ---
 void panic(const char* msg, Registers* regs) {
     __asm__ volatile ("cli");
-    hw_cursor_hide(); // Скрыть курсор на экране паники
+    hw_cursor_hide(); // Hide cursor on panic screen
 
     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
         vga[i] = (uint16_t)' ' | (((RED << 4) | WHITE) << 8);
@@ -710,7 +713,8 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     gdt_init();
     idt_init();
 
-    // Курсор пока скрыт — включим его только перед промптом
+    // Enable cursor shape once, then hide it for the splash screen
+    hw_cursor_enable();
     hw_cursor_hide();
 
     uint32_t divisor = 1193180 / 100;
@@ -754,8 +758,7 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     int prompt_x = cursor_x;
     int prompt_y = cursor_y;
 
-    // Курсор включаем только сейчас — он сразу появляется на промпте
-    hw_cursor_enable();
+    // Cursor is already enabled, just move it to position
     hw_cursor_update();
 
     char buf[80];
@@ -841,7 +844,7 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
                     vga_putchar(buf[i]);
                 hw_cursor_update();
             } else if (new_len == buf_pos && buf_len > buf_pos) {
-                // ничего не делать
+                // do nothing
             } else {
                 set_color(YELLOW, BLACK);
                 print("limon> ");
@@ -866,7 +869,7 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
             history_push(buf);
             history_nav = -1;
 
-            // Скрыть курсор на время выполнения команды
+            // Hide cursor during command execution
             hw_cursor_hide();
 
             char* cmd_name = buf;
@@ -910,8 +913,7 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
             prompt_x = cursor_x;
             prompt_y = cursor_y;
 
-            // Показать курсор снова — уже на новом промпте
-            hw_cursor_enable();
+            // Update position for new prompt (enable not needed)
             hw_cursor_update();
 
         } else if (c == '\b') {
