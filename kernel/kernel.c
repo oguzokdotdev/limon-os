@@ -134,17 +134,14 @@ static int parse_args(char* str, char* argv[], int max_args) {
 // --- Hardware cursor ---
 static void hw_cursor_enable(void) {
     outb(0x3D4, 0x0A);
-    outb(0x3D5, 0x0D); // scanline start 13, cursor enabled
+    outb(0x3D5, (inb(0x3D5) & 0xC0) | 0x0D); // bit5=0 (enabled), start=13
     outb(0x3D4, 0x0B);
-    outb(0x3D5, 0x0F); // scanline end 15
+    outb(0x3D5, (inb(0x3D5) & 0xE0) | 0x0F); // end=15
 }
 
 static void hw_cursor_hide(void) {
-    uint16_t off = VGA_HEIGHT * VGA_WIDTH; // position 2000 - off-screen
-    outb(0x3D4, 0x0F);
-    outb(0x3D5, (uint8_t)(off & 0xFF));
-    outb(0x3D4, 0x0E);
-    outb(0x3D5, (uint8_t)((off >> 8) & 0xFF));
+    outb(0x3D4, 0x0A);
+    outb(0x3D5, inb(0x3D5) | 0x20); // bit5=1 (disabled)
 }
 
 static void hw_cursor_update(void) {
@@ -580,7 +577,7 @@ static int tab_complete(char* buf, int buf_len) {
             print(matches[i]);
             print("\n");
         }
-        return buf_len;
+        return -1; // signal: matches printed, need to redraw prompt
     }
 }
 
@@ -759,6 +756,7 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     int prompt_y = cursor_y;
 
     // Cursor is already enabled, just move it to position
+    hw_cursor_enable();
     hw_cursor_update();
 
     char buf[80];
@@ -834,18 +832,8 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
 
         if (c == '\t') {
             int new_len = tab_complete(buf, buf_pos);
-            if (new_len != buf_pos) {
-                buf_len = new_len;
-                buf_pos = new_len;
-                cursor_x = prompt_x;
-                cursor_y = prompt_y;
-                set_color(WHITE, BLACK);
-                for (int i = 0; i < buf_len; i++)
-                    vga_putchar(buf[i]);
-                hw_cursor_update();
-            } else if (new_len == buf_pos && buf_len > buf_pos) {
-                // do nothing
-            } else {
+            if (new_len == -1) {
+                // printed multiple matches - redraw prompt and buffer
                 set_color(YELLOW, BLACK);
                 print("limon> ");
                 set_color(WHITE, BLACK);
@@ -855,6 +843,16 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
                     vga_putchar(buf[i]);
                 cursor_x = prompt_x + buf_pos;
                 cursor_y = prompt_y;
+                hw_cursor_update();
+            } else if (new_len != buf_pos) {
+                // single match - autocomplete
+                buf_len = new_len;
+                buf_pos = new_len;
+                cursor_x = prompt_x;
+                cursor_y = prompt_y;
+                set_color(WHITE, BLACK);
+                for (int i = 0; i < buf_len; i++)
+                    vga_putchar(buf[i]);
                 hw_cursor_update();
             }
             continue;
@@ -913,7 +911,8 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
             prompt_x = cursor_x;
             prompt_y = cursor_y;
 
-            // Update position for new prompt (enable not needed)
+            // Re-enable cursor after command execution
+            hw_cursor_enable();
             hw_cursor_update();
 
         } else if (c == '\b') {
