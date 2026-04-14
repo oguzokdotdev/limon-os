@@ -8,7 +8,7 @@
 | **v0.1.3** | Shell UX | [✅ Released](https://github.com/oguzokdotdev/limon-os/releases/tag/v0.1.3) | 06.04.2026 | History, tab completion, shift, `lscmd`, `ver` |
 | **v0.1.4** | CPU Exceptions | [✅ Released](https://github.com/oguzokdotdev/limon-os/releases/tag/v0.1.4) | 10.04.2026 | #DE #GP #PF #DF handlers, `panic()` |
 | **v0.1.5** | libc Foundation | [✅ Released](https://github.com/oguzokdotdev/limon-os/releases/tag/v0.1.5) | 11.04.2026 | `string.c`, `memory.c`, `convert.c` |
-| **v0.1.6** | VGA Extended | [✅ Released](https://github.com/oguzokdotdev/limonos/release/tag/v0.1.6)                                                                | 14.04.2026 | Hardware cursor |
+| **v0.1.6** | VGA Extended | [✅ Released](https://github.com/oguzokdotdev/limon-os/releases/tag/v0.1.6) | 14.04.2026 | Hardware cursor |
 | **v0.1.7** | Verbose Boot | 🔲 Planned                                                                 | —          | `[OK]`/`[WARN]`/`[FAIL]` boot log |
 | **v0.1.8** | Timers & RTC | 🔲 Planned                                                                 | —          | RTC, `date` command |
 | **v0.1.9** | Refactoring | 🔲 Planned                                                                 | —          | `kernel.h`, folder structure |
