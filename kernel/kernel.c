@@ -705,12 +705,45 @@ static void redraw_line(char* buf, int buf_len, int buf_pos,
     hw_cursor_update();
 }
 
+// --- Boot Log ---
+typedef enum { BOOT_OK, BOOT_WARN, BOOT_FAIL } boot_status_t;
+
+static void boot_delay(uint32_t ticks) {
+    uint32_t start = timer_ticks;
+    while (timer_ticks - start < ticks) {
+        __asm__ volatile("pause");
+    }
+}
+
+static void boot_log(boot_status_t status, const char* msg) {
+    switch (status) {
+        case BOOT_OK:
+            set_color(LIGHT_GREEN, BLACK);
+            print("[  OK  ] ");
+            break;
+        case BOOT_WARN:
+            set_color(YELLOW, BLACK);
+            print("[ WARN ] ");
+            break;
+        case BOOT_FAIL:
+            set_color(LIGHT_RED, BLACK);
+            print("[ FAIL ] ");
+            break;
+    }
+    set_color(LIGHT_GREY, BLACK);
+    print(msg);
+    print("\n");
+
+    // Задержка 150-200 мс (15-20 тиков при 100 Гц),
+    // чтобы глаз успел заметить строку
+    boot_delay(15);
+}
+
 // --- Kernel ---
 void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     gdt_init();
     idt_init();
 
-    // Enable cursor shape once, then hide it for the splash screen
     hw_cursor_enable();
     hw_cursor_hide();
 
@@ -719,12 +752,47 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     outb(0x40, (uint8_t)(divisor & 0xFF));
     outb(0x40, (uint8_t)((divisor >> 8) & 0xFF));
 
-    if (magic == MULTIBOOT_MAGIC && mbi && (mbi->flags & 0x1))
-        g_mem_upper = mbi->mem_upper;
-
+    // --- Boot log ---
     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
         vga[i] = (BLACK << 12) | (' ');
 
+    cursor_x = 0;
+    cursor_y = 0;
+
+    boot_log(BOOT_OK,  "GDT initialized");
+    boot_log(BOOT_OK,  "IDT initialized");
+    boot_log(BOOT_OK,  "PIT configured at 100 Hz");
+
+    if (magic == MULTIBOOT_MAGIC && mbi && (mbi->flags & 0x1)) {
+        g_mem_upper = mbi->mem_upper;
+        char mem_msg[40];
+        uint32_t mem_mib = (g_mem_upper + 1024) / 1024;
+        int i = 0;
+        const char* prefix = "Memory: ";
+        for (int j = 0; prefix[j]; j++) mem_msg[i++] = prefix[j];
+        uint32_t tmp = mem_mib;
+        if (tmp == 0) { mem_msg[i++] = '0'; }
+        else {
+            char rev[12]; int ri = 0;
+            while (tmp) { rev[ri++] = '0' + (tmp % 10); tmp /= 10; }
+            for (int j = ri - 1; j >= 0; j--) mem_msg[i++] = rev[j];
+        }
+        const char* suffix = " MiB detected";
+        for (int j = 0; suffix[j]; j++) mem_msg[i++] = suffix[j];
+        mem_msg[i] = '\0';
+        boot_log(BOOT_OK, mem_msg);
+    } else {
+        boot_log(BOOT_WARN, "Multiboot info unavailable, memory unknown");
+    }
+
+    boot_log(BOOT_OK, "Keyboard driver ready");
+    boot_log(BOOT_OK, "System ready");
+
+    // --- Clear ---
+    boot_delay(100);
+    cmd_clear(0);
+
+    // --- Splash ---
     set_color(YELLOW, BLACK);
     center_print("  _     _                          ___  _____  ", 4);
     center_print(" | |   (_)_ __ ___   ___  _ __   / _ \\/ ___/  ", 5);
@@ -743,19 +811,16 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     center_print("Developed with Claude Sonnet 4.6", 14);
     center_print("Inspired by VibeOS", 15);
 
-    set_color(LIGHT_GREEN, BLACK);
-    center_print("[ OK ] Booting Limon OS...", 18);
-
-    set_color(YELLOW, BLACK);
+    // --- Prompt ---
     cursor_x = 0;
     cursor_y = 21;
+    set_color(YELLOW, BLACK);
     print("limon> ");
     set_color(WHITE, BLACK);
 
     int prompt_x = cursor_x;
     int prompt_y = cursor_y;
 
-    // Cursor is already enabled, just move it to position
     hw_cursor_enable();
     hw_cursor_update();
 

@@ -4,7 +4,7 @@ CFLAGS  = -m32 -ffreestanding -fno-stack-protector -nostdlib -fno-pic -O2 -Ikern
 LDFLAGS = -m elf_i386 -T linker.ld
 LIBC_OBJS = kernel/libc/string.o kernel/libc/memory.o kernel/libc/convert.o
 
-VERSION          = 0.1.6
+VERSION          = 0.1.7
 CODENAME         = sicily
 CODENAME_DISPLAY = Sicily
 
