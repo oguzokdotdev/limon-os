@@ -1,8 +1,12 @@
 section .multiboot
 align 4
-    dd 0x1BADB002
-    dd 0x00000001       ; flags: бит 0 = запросить mem_lower/mem_upper
-    dd -(0x1BADB002 + 0x00000001)
+MAGIC       equ 0x1BADB002
+FLAGS       equ 0x00000003    ; 0x1 (выравнивание) + 0x2 (инфо о памяти)
+CHECKSUM    equ -(MAGIC + FLAGS)
+
+    dd MAGIC
+    dd FLAGS
+    dd CHECKSUM
 
 section .text
 global _start
@@ -11,8 +15,8 @@ extern kernel_main
 _start:
     cli
     mov esp, stack_top
-    push ebx            ; передаём multiboot_info* в kernel_main
-    push eax            ; передаём magic
+    push ebx            ; передаём multiboot_info* в kernel_main (второй аргумент)
+    push eax            ; передаём magic в kernel_main (первый аргумент)
     call kernel_main
     hlt
 
