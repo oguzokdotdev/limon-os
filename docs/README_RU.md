@@ -5,7 +5,7 @@
 Хобби-операционная система написанная с нуля для x86.  
 Вдохновлена [VibeOS](https://github.com/kaansenol5/VibeOS). Разработано с Claude Sonnet 4.6.
 
-**Актуальная версия: Sicily 0.1.6**
+**Актуальная версия: Sicily 0.1.7**
 
 **Прототип интерфейса LimonOS Menton: <a href="https://limon.oguzok.tech/" target="_blank">click 🚀</a>**
 
@@ -38,6 +38,7 @@
 - Чтение памяти из Multiboot-структуры (`mem_upper`)
 - Базовая библиотека ядра `kernel/libc/`: строки (`strlen`, `strcmp`, `strcpy` и др.), память (`memset`, `memcpy`, `memmove`, `memcmp`), конвертация (`atoi`, `itoa`, `itoh`)
 - Аппаратный VGA курсор
+- Логирование загрузки
 
 ---
 

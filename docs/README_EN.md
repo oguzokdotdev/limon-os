@@ -5,7 +5,7 @@
 A hobby x86 operating system built from scratch.  
 Inspired by [VibeOS](https://github.com/kaansenol5/VibeOS). Developed with Claude Sonnet 4.6.
 
-**Current version: Sicily 0.1.6**
+**Current version: Sicily 0.1.7**
 
 **LimonOS Menton UI prototype: <a href="https://limon.oguzok.tech/" target="_blank">click 🚀</a>**
 
@@ -38,6 +38,7 @@ Inspired by [VibeOS](https://github.com/kaansenol5/VibeOS). Developed with Claud
 - Memory read from Multiboot info structure (`mem_upper`)
 - Kernel libc `kernel/libc/`: strings (`strlen`, `strcmp`, `strcpy` etc.), memory (`memset`, `memcpy`, `memmove`, `memcmp`), conversion (`atoi`, `itoa`, `itoh`)
 - VGA hardware cursor
+- Boot logging
 
 ---
 

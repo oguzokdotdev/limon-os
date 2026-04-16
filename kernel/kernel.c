@@ -795,10 +795,10 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     // --- Splash ---
     set_color(YELLOW, BLACK);
     center_print("  _     _                          ___  _____  ", 4);
-    center_print(" | |   (_)_ __ ___   ___  _ __   / _ \\/ ___/  ", 5);
-    center_print(" | |   | | '_ ` _ \\ / _ \\| '_ \\ | | | \\___ \\  ", 6);
-    center_print(" | |___| | | | | | | (_) | | | || |_| |___) | ", 7);
-    center_print(" |_____|_|_| |_| |_|\\___/|_| |_| \\___//____/  ", 8);
+    center_print(" | |   (_)_ __ ___   ___  _ __    / _ \\/ ___/  ", 5);
+    center_print(" | |   | | '_ ` _ \\ / _ \\| '_ \\  | | | \\___ \\  ", 6);
+    center_print(" | |___| | | | | | | (_) | | | | | |_| |___) | ", 7);
+    center_print(" |_____|_|_| |_| |_|\\___/|_| |_|  \\___//____/  ", 8);
 
     set_color(WHITE, BLACK);
     center_print(LIMON_VERSION_FULL, 10);
@@ -813,7 +813,7 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
 
     // --- Prompt ---
     cursor_x = 0;
-    cursor_y = 21;
+    cursor_y = 24;
     set_color(YELLOW, BLACK);
     print("limon> ");
     set_color(WHITE, BLACK);
