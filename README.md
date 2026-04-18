@@ -2,7 +2,7 @@
 
 > clean, minimal, yours.
 
-![Version](https://img.shields.io/badge/version-Sicily%200.1.7-yellow?style=flat-square)
+![Version](https://img.shields.io/badge/version-Sicily%200.1.8-yellow?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 ![Arch](https://img.shields.io/badge/arch-i386-blue?style=flat-square)
 ![Build](https://img.shields.io/github/actions/workflow/status/oguzokdotdev/limon-os/build.yml?style=flat-square)
