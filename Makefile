@@ -3,8 +3,9 @@ AS      = nasm
 CFLAGS  = -m32 -ffreestanding -fno-stack-protector -nostdlib -fno-pic -O2 -Ikernel
 LDFLAGS = -m elf_i386 -T linker.ld
 LIBC_OBJS = kernel/libc/string.o kernel/libc/memory.o kernel/libc/convert.o
+RTC_OBJS = kernel/drivers/rtc.o
 
-VERSION          = 0.1.7
+VERSION          = 0.1.8
 CODENAME         = sicily
 CODENAME_DISPLAY = Sicily
 
@@ -51,7 +52,10 @@ kernel/libc/memory.o: kernel/libc/memory.c
 kernel/libc/convert.o: kernel/libc/convert.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-kernel.bin: boot.o idt_asm.o kernel.o gdt.o idt.o $(LIBC_OBJS)
+kernel/drivers/rtc.o: kernel/drivers/rtc.c kernel/drivers/rtc.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+kernel.bin: boot.o idt_asm.o kernel.o gdt.o idt.o $(LIBC_OBJS) $(RTC_OBJS)
 	ld $(LDFLAGS) -o $@ $^
 
 iso/boot/kernel.bin: kernel.bin
@@ -65,7 +69,7 @@ iso/boot/kernel.bin: kernel.bin
 	@printf '#define LIMON_BUILD          %s\n' "$(BUILD)"              >> kernel/version.h
 	@printf '#endif\n'                                                   >> kernel/version.h
 	$(CC) $(CFLAGS) -c kernel/kernel.c -o kernel.o
-	ld $(LDFLAGS) -o kernel.bin boot.o idt_asm.o kernel.o gdt.o idt.o $(LIBC_OBJS)
+	ld $(LDFLAGS) -o kernel.bin boot.o idt_asm.o kernel.o gdt.o idt.o $(LIBC_OBJS) $(RTC_OBJS)
 	mkdir -p iso/boot/grub
 	cp kernel.bin iso/boot/kernel.bin
 	cp boot/grub.cfg iso/boot/grub/grub.cfg
@@ -91,5 +95,7 @@ clean:
 	rm -rf iso
 	rm -f kernel/version.h last.iso
 	rm -f kernel/libc/*.o
+	rm -f kernel/drivers/*.o
+
 
 .PHONY: all iso run clean commit-build

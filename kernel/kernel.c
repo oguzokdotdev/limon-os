@@ -5,6 +5,7 @@
 #include "libc/string.h"
 #include "libc/memory.h"
 #include "libc/convert.h"
+#include "drivers/rtc.h"
 
 // --- Multiboot ---
 #define MULTIBOOT_MAGIC 0x2BADB002
@@ -446,6 +447,21 @@ static void cmd_div0(char* args) {
     (void)x;
 }
 
+static void cmd_date(char* args) {
+    rtc_time_t t;
+    rtc_read(&t);
+    set_color(WHITE, BLACK);
+    print("  ");
+    print_padded2(t.day);   print(".");
+    print_padded2(t.month); print(".");
+    print_int(2000 + t.year);
+    print("  ");
+    print_padded2(t.hour);   print(":");
+    print_padded2(t.minute); print(":");
+    print_padded2(t.second);
+    print("\n");
+}
+
 // --- Command table ---
 static const Command commands[] = {
     {"help",       "show commands",      2, cmd_help},
@@ -454,6 +470,7 @@ static const Command commands[] = {
     {"clear",      "clear screen",       1, cmd_clear},
     {"uname",      "system information", 2, cmd_uname},
     {"ver",        "system version",     2, cmd_ver},
+    {"date",       "show current date/time", 2, cmd_date},
     {"limonfetch", "system fetch",       2, cmd_fetch},
     {"reboot",     "reboot system",      1, cmd_reboot},
     {"halt",       "halt system",        1, cmd_halt},
@@ -762,6 +779,7 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     boot_log(BOOT_OK,  "GDT initialized");
     boot_log(BOOT_OK,  "IDT initialized");
     boot_log(BOOT_OK,  "PIT configured at 100 Hz");
+    boot_log(BOOT_OK,  "RTC driver ready");
 
     if (magic == MULTIBOOT_MAGIC && mbi && (mbi->flags & 0x1)) {
         g_mem_upper = mbi->mem_upper;
