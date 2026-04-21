@@ -12,7 +12,9 @@
 | **v0.1.7** | Verbose Boot | [✅ Released](https://github.com/oguzokdotdev/limon-os/releases/tag/v0.1.7) | 16.04.2026 | `[OK]`/`[WARN]`/`[FAIL]` boot log |
 | **v0.1.8** | Timers & RTC | [✅ Released](https://github.com/oguzokdotdev/limon-os/releases/tag/v0.1.8) | 18.04.2026 | RTC, `date` command | 
 | **v0.1.9** | Refactoring | [✅ Released](https://github.com/oguzokdotdev/limon-os/releases/tag/v0.1.9) | 21.04.2026 | `kernel.h`, folder structure |
-| **v0.2.0** | Memory | 🔲 Planned                                                                 | —          | Paging, kmalloc |
+| **v0.2.0** | Memory: PMM | 🔲 Planned                                                                 | —          | Bitmap allocator, GRUB mmap, frame management |
+| **v0.2.1** | Memory: VMM | 🔲 Planned                                                                 | —          | Paging, Page Tables, Higher-Half Kernel |
+| **v0.2.2** | Memory: Heap | 🔲 Planned                                                                 | —          | kmalloc, kfree, slab/heap allocation |
 | **v0.3.0** | Processes | 🔲 Planned        	                                                         | —          | Processes, scheduler |
 | **v0.4.0** | FAT32 | 🔲 Planned                                                                 | —          | FAT32 filesystem |
 | **v0.5.0** | Userspace & Syscalls | 🔲 Planned                                                                 | —          | Userspace, syscalls |
