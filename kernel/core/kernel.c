@@ -21,7 +21,6 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
 
     vga_init();
     hw_cursor_enable();
-    hw_cursor_hide();
 
     pit_init();
     vga_clear();
