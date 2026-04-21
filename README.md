@@ -20,14 +20,29 @@ Inspired by [VibeOS](https://github.com/kaansenol5/VibeOS). Developed with Claud
 
 ---
 
-## Screenshots
+## 📸 Screenshots
 
 ![Bootscreen](docs/screenshots/v0.1.3/bootscreen.png)
 ![Shell](docs/screenshots/v0.1.3/shell.png)
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
+
+First, download the system `.iso` image from the latest [release](https://github.com/oguzokdotdev/limon-os/releases).
+
+```bash
+sudo apt update && sudo apt install -y qemu-system-x86      # Debian/Ubuntu
+sudo pacman -S --noconfirm qemu-system-x86                  # Arch Linux
+sudo dnf install -y qemu-system-x86                         # Fedora
+
+qemu-system-i386 -cdrom limon_*.iso
+```
+
+## 🛠️ Build from source
+
+The build environment is currently tested on **Linux Mint (Debian/Ubuntu-based)**.
+Note that you may need to modify the Makefile to suit your specific system.
 
 ```bash
 sudo apt install build-essential gcc nasm qemu-system-i386 grub-pc-bin xorriso
