@@ -1,85 +1,88 @@
 CC      = gcc
 AS      = nasm
-CFLAGS  = -m32 -ffreestanding -fno-stack-protector -nostdlib -fno-pic -O2 -Ikernel
-LDFLAGS = -m elf_i386 -T linker.ld
-LIBC_OBJS = kernel/libc/string.o kernel/libc/memory.o kernel/libc/convert.o
-RTC_OBJS = kernel/drivers/rtc.o
+LD      = ld
 
-VERSION          = 0.1.8
+CFLAGS  = -m32 -std=gnu99 -ffreestanding -fno-stack-protector -nostdlib \
+          -fno-pic -O2 -Wall -Wextra \
+          -Ikernel -Ikernel/core -Ilibc -Iinclude
+
+LDFLAGS = -m elf_i386 -T linker.ld
+
+VERSION          = 0.1.9
 CODENAME         = sicily
 CODENAME_DISPLAY = Sicily
 
 BUILD := $(shell cat build.no)
 
+VERSION_H = kernel/core/version.h
+
+KERNEL_SRCS = \
+    kernel/core/kernel.c            \
+    kernel/core/panic.c             \
+    kernel/core/boot_log.c          \
+    kernel/arch/x86/gdt.c           \
+    kernel/arch/x86/idt.c           \
+    kernel/arch/x86/cpu.c           \
+    kernel/drivers/video/vga.c      \
+    kernel/drivers/input/keyboard.c \
+    kernel/drivers/timer/pit.c      \
+    kernel/drivers/timer/rtc.c      \
+    kernel/shell/shell.c            \
+    libc/string.c                   \
+    libc/memory.c                   \
+    libc/convert.c
+
+KERNEL_OBJS = $(KERNEL_SRCS:.c=.o)
+ASM_OBJS    = boot/boot.o boot/idt_asm.o
+
 all: iso/boot/kernel.bin
 
-kernel/version.h: Makefile
-	@printf '#ifndef VERSION_H\n#define VERSION_H\n' > kernel/version.h.tmp
-	@printf '#define LIMON_VERSION_STRING "%s"\n' "$(VERSION)"          >> kernel/version.h.tmp
-	@printf '#define LIMON_CODENAME       "%s"\n' "$(CODENAME_DISPLAY)" >> kernel/version.h.tmp
-	@printf '#define LIMON_VERSION_FULL   "LimonOS %s (v%s)"\n' "$(CODENAME_DISPLAY)" "$(VERSION)" >> kernel/version.h.tmp
-	@printf '#define LIMON_ARCH           "i386"\n'                     >> kernel/version.h.tmp
-	@printf '#define LIMON_BUILD          %s\n' "$(BUILD)"              >> kernel/version.h.tmp
-	@printf '#endif\n'                                                   >> kernel/version.h.tmp
-	@if ! cmp -s kernel/version.h.tmp kernel/version.h 2>/dev/null; then \
-		mv kernel/version.h.tmp kernel/version.h; \
-		echo "  --> version.h updated (b$(BUILD))"; \
-	else \
-		rm kernel/version.h.tmp; \
-	fi
+$(VERSION_H): Makefile
+	@mkdir -p kernel/core
+	@printf '#ifndef VERSION_H\n#define VERSION_H\n'                                              > $(VERSION_H)
+	@printf '#define LIMON_VERSION_STRING "%s"\n'   "$(VERSION)"                                >> $(VERSION_H)
+	@printf '#define LIMON_CODENAME       "%s"\n'   "$(CODENAME_DISPLAY)"                       >> $(VERSION_H)
+	@printf '#define LIMON_VERSION_FULL   "LimonOS %s (v%s)"\n' "$(CODENAME_DISPLAY)" "$(VERSION)" >> $(VERSION_H)
+	@printf '#define LIMON_ARCH           "i386"\n'                                             >> $(VERSION_H)
+	@printf '#define LIMON_BUILD          %s\n'     "$(BUILD)"                                  >> $(VERSION_H)
+	@printf '#endif\n'                                                                          >> $(VERSION_H)
 
-boot.o: boot/boot.asm
+%.o: %.c $(VERSION_H)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+boot/boot.o: boot/boot.asm
 	$(AS) -f elf32 $< -o $@
 
-idt_asm.o: boot/idt_asm.asm
+boot/idt_asm.o: boot/idt_asm.asm
 	$(AS) -f elf32 $< -o $@
 
-kernel.o: kernel/version.h kernel/kernel.c
-	$(CC) $(CFLAGS) -c kernel/kernel.c -o $@
-
-gdt.o: kernel/gdt.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-idt.o: kernel/idt.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-kernel/libc/string.o: kernel/libc/string.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-kernel/libc/memory.o: kernel/libc/memory.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-kernel/libc/convert.o: kernel/libc/convert.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-kernel/drivers/rtc.o: kernel/drivers/rtc.c kernel/drivers/rtc.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-kernel.bin: boot.o idt_asm.o kernel.o gdt.o idt.o $(LIBC_OBJS) $(RTC_OBJS)
-	ld $(LDFLAGS) -o $@ $^
+kernel.bin: $(ASM_OBJS) $(KERNEL_OBJS)
+	$(LD) $(LDFLAGS) -o $@ $^
 
 iso/boot/kernel.bin: kernel.bin
 	$(eval BUILD := $(shell echo $$(( $(BUILD) + 1 ))))
 	@echo $(BUILD) > build.no
-	@printf '#ifndef VERSION_H\n#define VERSION_H\n' > kernel/version.h
-	@printf '#define LIMON_VERSION_STRING "%s"\n' "$(VERSION)"          >> kernel/version.h
-	@printf '#define LIMON_CODENAME       "%s"\n' "$(CODENAME_DISPLAY)" >> kernel/version.h
-	@printf '#define LIMON_VERSION_FULL   "LimonOS %s (v%s)"\n' "$(CODENAME_DISPLAY)" "$(VERSION)" >> kernel/version.h
-	@printf '#define LIMON_ARCH           "i386"\n'                     >> kernel/version.h
-	@printf '#define LIMON_BUILD          %s\n' "$(BUILD)"              >> kernel/version.h
-	@printf '#endif\n'                                                   >> kernel/version.h
-	$(CC) $(CFLAGS) -c kernel/kernel.c -o kernel.o
-	ld $(LDFLAGS) -o kernel.bin boot.o idt_asm.o kernel.o gdt.o idt.o $(LIBC_OBJS) $(RTC_OBJS)
-	mkdir -p iso/boot/grub
-	cp kernel.bin iso/boot/kernel.bin
-	cp boot/grub.cfg iso/boot/grub/grub.cfg
+	@printf '#ifndef VERSION_H\n#define VERSION_H\n'                                              > $(VERSION_H)
+	@printf '#define LIMON_VERSION_STRING "%s"\n'   "$(VERSION)"                                >> $(VERSION_H)
+	@printf '#define LIMON_CODENAME       "%s"\n'   "$(CODENAME_DISPLAY)"                       >> $(VERSION_H)
+	@printf '#define LIMON_VERSION_FULL   "LimonOS %s (v%s)"\n' "$(CODENAME_DISPLAY)" "$(VERSION)" >> $(VERSION_H)
+	@printf '#define LIMON_ARCH           "i386"\n'                                             >> $(VERSION_H)
+	@printf '#define LIMON_BUILD          %s\n'     "$(BUILD)"                                  >> $(VERSION_H)
+	@printf '#endif\n'                                                                          >> $(VERSION_H)
+	$(CC) $(CFLAGS) -c kernel/core/kernel.c  -o kernel/core/kernel.o
+	$(CC) $(CFLAGS) -c kernel/core/panic.c   -o kernel/core/panic.o
+	$(CC) $(CFLAGS) -c kernel/shell/shell.c  -o kernel/shell/shell.o
+	$(LD) $(LDFLAGS) -o kernel.bin $(ASM_OBJS) $(KERNEL_OBJS)
+	@mkdir -p iso/boot/grub
+	@cp kernel.bin iso/boot/kernel.bin
+	@cp boot/grub.cfg iso/boot/grub/grub.cfg
 	grub-mkrescue -o limon_v$(VERSION)_$(CODENAME)_b$(BUILD).iso iso
 	@echo limon_v$(VERSION)_$(CODENAME)_b$(BUILD).iso > last.iso
 	@echo "  --> Build $(BUILD) complete: limon_v$(VERSION)_$(CODENAME)_b$(BUILD).iso"
-
+	
 iso: iso/boot/kernel.bin
 
-run: iso/boot/kernel.bin
+run:
 	qemu-system-i386 -cdrom $$(cat last.iso)
 
 commit-build:
@@ -91,11 +94,8 @@ commit-build:
 	git push
 
 clean:
-	rm -f *.o kernel.bin limon_*.iso
+	rm -f $(KERNEL_OBJS) $(ASM_OBJS) kernel.bin limon_*.iso
 	rm -rf iso
-	rm -f kernel/version.h last.iso
-	rm -f kernel/libc/*.o
-	rm -f kernel/drivers/*.o
-
+	rm -f $(VERSION_H) last.iso
 
 .PHONY: all iso run clean commit-build
