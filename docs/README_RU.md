@@ -5,7 +5,7 @@
 Хобби-операционная система написанная с нуля для x86.  
 Вдохновлена [VibeOS](https://github.com/kaansenol5/VibeOS). Разработано с Claude Sonnet 4.6.
 
-**Актуальная версия: Sicily 0.1.8**
+**Актуальная версия: Sicily 0.1.9**
 
 **Прототип интерфейса LimonOS Menton: <a href="https://limon.oguzok.tech/" target="_blank">click 🚀</a>**
 
