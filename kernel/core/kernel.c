@@ -1,19 +1,31 @@
 #include <stdint.h>
 #include "arch/x86/gdt.h"
 #include "arch/x86/idt.h"
+#include "arch/x86/cpu.h"
 #include "drivers/video/vga.h"
 #include "drivers/timer/pit.h"
+#include "drivers/timer/rtc.h"
 #include "core/boot_log.h"
+#include "core/version.h"
+#include "mm/pmm.h"
 #include "shell/shell.h"
 #include "convert.h"
 
 #define MULTIBOOT_MAGIC 0x2BADB002
 
+extern uint32_t _kernel_end;
 typedef struct {
     uint32_t flags;
     uint32_t mem_lower;
     uint32_t mem_upper;
-} MultibootInfo;
+    uint32_t boot_device;
+    uint32_t cmdline;
+    uint32_t mods_count;
+    uint32_t mods_addr;
+    uint32_t syms[4];
+    uint32_t mmap_length;   /* offset 44 */
+    uint32_t mmap_addr;     /* offset 48 */
+} __attribute__((packed)) MultibootInfo;
 
 void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     gdt_init();
@@ -52,6 +64,19 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     } else {
         boot_log(BOOT_WARN, "Multiboot info unavailable, memory unknown");
     }
+
+    /* Инициализация PMM */
+    uint32_t mmap_addr   = 0;
+    uint32_t mmap_length = 0;
+    if (magic == MULTIBOOT_MAGIC && mbi && (mbi->flags & 0x40)) {
+        /* bit 6 = mmap present */
+        mmap_addr   = mbi->mmap_addr;
+        mmap_length = mbi->mmap_length;
+    }
+
+    pmm_init(mmap_addr, mmap_length,
+             mem_upper,
+             (uint32_t)&_kernel_end);
 
     boot_log(BOOT_OK, "Keyboard driver ready");
     boot_log(BOOT_OK, "System ready");

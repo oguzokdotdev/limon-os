@@ -1,7 +1,7 @@
 section .multiboot
 align 4
 MAGIC       equ 0x1BADB002
-FLAGS       equ 0x00000003    ; 0x1 (выравнивание) + 0x2 (инфо о памяти)
+FLAGS equ 0x00000007    ; 0x1 (align) + 0x2 (mem info) + 0x4 (mmap) 
 CHECKSUM    equ -(MAGIC + FLAGS)
 
     dd MAGIC

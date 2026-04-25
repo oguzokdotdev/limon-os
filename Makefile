@@ -28,6 +28,7 @@ KERNEL_SRCS = \
     kernel/drivers/timer/pit.c      \
     kernel/drivers/timer/rtc.c      \
     kernel/shell/shell.c            \
+    kernel/mm/pmm.c	            \
     libc/string.c                   \
     libc/memory.c                   \
     libc/convert.c
@@ -83,7 +84,7 @@ iso/boot/kernel.bin: kernel.bin
 iso: iso/boot/kernel.bin
 
 run:
-	qemu-system-i386 -cdrom $$(cat last.iso)
+	qemu-system-i386 -cdrom $$(cat last.iso) -m 256M
 
 commit-build:
 	git config --global user.name "github-actions[bot]"
