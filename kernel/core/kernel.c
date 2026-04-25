@@ -66,17 +66,29 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     }
 
     /* Инициализация PMM */
+    uint32_t safe_kernel_end = (uint32_t)&_kernel_end;
+
+    if (magic == MULTIBOOT_MAGIC && mbi) {
+        uint32_t mbi_end = (uint32_t)mbi + sizeof(MultibootInfo);
+        if (mbi_end > safe_kernel_end) safe_kernel_end = mbi_end;
+
+        if (mbi->flags & 0x40) {
+            uint32_t mmap_end = mbi->mmap_addr + mbi->mmap_length;
+            if (mmap_end > safe_kernel_end) safe_kernel_end = mmap_end;
+        }
+    }
+
     uint32_t mmap_addr   = 0;
     uint32_t mmap_length = 0;
     if (magic == MULTIBOOT_MAGIC && mbi && (mbi->flags & 0x40)) {
-        /* bit 6 = mmap present */
         mmap_addr   = mbi->mmap_addr;
         mmap_length = mbi->mmap_length;
     }
 
     pmm_init(mmap_addr, mmap_length,
              mem_upper,
-             (uint32_t)&_kernel_end);
+             safe_kernel_end);
+
 
     boot_log(BOOT_OK, "Keyboard driver ready");
     boot_log(BOOT_OK, "System ready");
