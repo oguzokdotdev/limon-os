@@ -1,6 +1,5 @@
 #include "pmm.h"
 #include "core/boot_log.h"
-#include "libc/convert.h"   /* uint_to_str для boot_log */
 
 /* ── Внутреннее состояние ─────────────────────────────────────────────── */
 
