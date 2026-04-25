@@ -8,7 +8,7 @@ CFLAGS  = -m32 -std=gnu99 -ffreestanding -fno-stack-protector -nostdlib \
 
 LDFLAGS = -m elf_i386 -T linker.ld
 
-VERSION          = 0.1.9
+VERSION          = 0.2.0
 CODENAME         = sicily
 CODENAME_DISPLAY = Sicily
 
