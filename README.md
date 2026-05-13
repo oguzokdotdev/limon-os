@@ -2,7 +2,7 @@
 
 > clean, minimal, yours.
 
-![Version](https://img.shields.io/badge/version-Sicily%200.1.9-yellow?style=flat-square)
+![Version](https://img.shields.io/badge/version-Sicily%200.2.0-yellow?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 ![Arch](https://img.shields.io/badge/arch-i386-blue?style=flat-square)
 ![Build](https://img.shields.io/github/actions/workflow/status/oguzokdotdev/limon-os/build.yml?style=flat-square)
@@ -22,8 +22,16 @@ Inspired by [VibeOS](https://github.com/kaansenol5/VibeOS). Developed with Claud
 
 ## 📸 Screenshots
 
-![Bootscreen](docs/screenshots/v0.1.3/bootscreen.png)
-![Shell](docs/screenshots/v0.1.3/shell.png)
+<table>
+  <tr>
+    <td><img src="docs/screenshots/v0.2.0/boot_log.png" width="360"/></td>
+    <td><img src="docs/screenshots/v0.2.0/shell.png" width="360"/></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/v0.2.0/more_shell.png" width="360"/></td>
+    <td><img src="docs/screenshots/v0.1.4/kernel_panic.png" width="360"/></td>
+  </tr>
+</table>
 
 ---
 

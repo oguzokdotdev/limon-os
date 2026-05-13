@@ -5,16 +5,9 @@
 A hobby x86 operating system built from scratch.  
 Inspired by [VibeOS](https://github.com/kaansenol5/VibeOS). Developed with Claude Sonnet 4.6.
 
-**Current version: Sicily 0.1.9**
+**Current version: Sicily 0.2.0**
 
 **LimonOS Menton UI prototype: <a href="https://limon.oguzok.tech/" target="_blank">click 🚀</a>**
-
----
-
-## Screenshots
-
-![Bootscreen](screenshots/v0.1.3/bootscreen.png)
-![Shell](screenshots/v0.1.3/shell.png)
 
 ---
 
@@ -41,23 +34,7 @@ Inspired by [VibeOS](https://github.com/kaansenol5/VibeOS). Developed with Claud
 - VGA hardware cursor
 - Boot logging
 - RTC driver
-
----
-
-## Quick Start
-
-### 1. Dependencies
-```bash
-sudo apt install build-essential gcc nasm qemu-system-i386 grub-pc-bin xorriso
-```
-
-### 2. Clone and run
-```bash
-git clone https://github.com/oguzokdotdev/limon-os.git
-cd limon-os
-make        # build
-make run    # run in QEMU
-```
+- Physical Memory Manager (PMM)
 
 ---
 

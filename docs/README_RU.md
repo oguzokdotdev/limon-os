@@ -5,16 +5,9 @@
 Хобби-операционная система написанная с нуля для x86.  
 Вдохновлена [VibeOS](https://github.com/kaansenol5/VibeOS). Разработано с Claude Sonnet 4.6.
 
-**Актуальная версия: Sicily 0.1.9**
+**Актуальная версия: Sicily 0.2.0**
 
 **Прототип интерфейса LimonOS Menton: <a href="https://limon.oguzok.tech/" target="_blank">click 🚀</a>**
-
----
-
-## Скриншоты
-
-![Bootscreen](screenshots/v0.1.3/bootscreen.png)
-![Shell](screenshots/v0.1.3/shell.png)
 
 ---
 
@@ -41,23 +34,7 @@
 - Аппаратный VGA курсор
 - Логирование загрузки
 - RTC драйвер
-
----
-
-## Быстрый старт
-
-### 1. Зависимости
-```bash
-sudo apt install build-essential gcc nasm qemu-system-i386 grub-pc-bin xorriso
-```
-
-### 2. Клонировать и запустить
-```bash
-git clone https://github.com/oguzokdotdev/limon-os.git
-cd limon-os
-make        # собрать
-make run    # запустить в QEMU
-```
+- Менеджер физической памяти (PMM)
 
 ---
 
