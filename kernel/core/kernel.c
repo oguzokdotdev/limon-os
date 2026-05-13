@@ -28,14 +28,14 @@ typedef struct {
 } __attribute__((packed)) MultibootInfo;
 
 void kernel_main(uint32_t magic, MultibootInfo* mbi) {
-    gdt_init();
-    idt_init();
+    gdt_init();    
 
     vga_init();
     hw_cursor_enable();
-
-    pit_init();
     vga_clear();
+    
+    idt_init();
+    pit_init();
 
     boot_log(BOOT_OK, "GDT initialized");
     boot_log(BOOT_OK, "IDT initialized");

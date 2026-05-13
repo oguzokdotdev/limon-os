@@ -62,3 +62,4 @@ kernel/version.h
 last.iso
 .idea/
 iso/boot/grub/grub.cfg
+*.txt

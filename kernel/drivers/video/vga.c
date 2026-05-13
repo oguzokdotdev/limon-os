@@ -15,7 +15,7 @@ static void scroll(void) {
         for (int x = 0; x < VGA_WIDTH; x++)
             vga_buf[y * VGA_WIDTH + x] = vga_buf[(y + 1) * VGA_WIDTH + x];
     for (int x = 0; x < VGA_WIDTH; x++)
-        vga_buf[(VGA_HEIGHT - 1) * VGA_WIDTH + x] = (BLACK << 12) | (' ');
+        vga_buf[(VGA_HEIGHT - 1) * VGA_WIDTH + x] = ((uint16_t)cur_color << 8) | ' ';
     cursor_y = VGA_HEIGHT - 1;
 }
 
@@ -71,7 +71,7 @@ void vga_print_hex(uint32_t n) {
 
 void vga_clear(void) {
     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
-        vga_buf[i] = (BLACK << 12) | (' ');
+        vga_buf[i] = ((uint16_t)cur_color << 8) | ' ';
     cursor_x = 0; cursor_y = 0;
 }
 
