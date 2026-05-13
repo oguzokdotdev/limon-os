@@ -8,6 +8,7 @@
 #include "core/boot_log.h"
 #include "core/version.h"
 #include "mm/pmm.h"
+#include "mm/vmm.h"
 #include "shell/shell.h"
 #include "convert.h"
 
@@ -88,6 +89,10 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
     pmm_init(mmap_addr, mmap_length,
              mem_upper,
              safe_kernel_end);
+
+    vmm_init();
+    vmm_switch_page_directory(kernel_dir);
+    boot_log(BOOT_OK, "VMM enabled");
 
 
     boot_log(BOOT_OK, "Keyboard driver ready");
