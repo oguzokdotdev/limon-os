@@ -8,7 +8,7 @@ CFLAGS  = -m32 -std=gnu99 -ffreestanding -fno-stack-protector -nostdlib \
 
 LDFLAGS = -m elf_i386 -T linker.ld
 
-VERSION          = 0.2.0
+VERSION          = 0.2.1
 CODENAME         = sicily
 CODENAME_DISPLAY = Sicily
 
@@ -28,7 +28,8 @@ KERNEL_SRCS = \
     kernel/drivers/timer/pit.c      \
     kernel/drivers/timer/rtc.c      \
     kernel/shell/shell.c            \
-    kernel/mm/pmm.c	            \
+    kernel/mm/pmm.c	                \
+	kernel/mm/vmm.c					\
     libc/string.c                   \
     libc/memory.c                   \
     libc/convert.c

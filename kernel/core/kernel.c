@@ -91,7 +91,7 @@ void kernel_main(uint32_t magic, MultibootInfo* mbi) {
              safe_kernel_end);
 
     vmm_init();
-    vmm_switch_page_directory(kernel_dir);
+    vmm_switch_page_directory(vmm_get_kernel_dir());
     boot_log(BOOT_OK, "VMM enabled");
 
 

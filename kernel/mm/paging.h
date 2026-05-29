@@ -13,12 +13,16 @@ typedef uint32_t page_entry_t;
 
 typedef struct {
     page_entry_t entries[1024];
-} page_table_t;
+} __attribute__((aligned(4096))) page_table_t;
 
+/*
+ * ВАЖНО:
+ * tables_phys ДОЛЖЕН быть ровно 4096 байт,
+ * потому что именно его читает CPU как page directory.
+ */
 typedef struct {
-    page_table_t* tables[1024];
-    uint32_t tables_phys[1024];
-    uint32_t phys_addr;
+    page_table_t *tables[1024];
+    uint32_t      tables_phys[1024];
 } page_directory_t;
 
 #endif
